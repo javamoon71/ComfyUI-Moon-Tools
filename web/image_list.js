@@ -215,8 +215,42 @@ function createImageListWidget(node, inputName) {
   return { widget };
 }
 
+// 글 입력칸에 붙여넣을 때는 브라우저 기본 동작에 맡긴다. ComfyUI 붙여넣기 처리와 같은 기준이다
+const NON_TEXT_INPUT_TYPES = ["button", "checkbox", "file", "hidden", "image", "radio", "range", "reset", "submit"];
+
+function isTextInput(target) {
+  return (
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable) ||
+    (target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.includes(target.type))
+  );
+}
+
+// 선택된 Image List 노드가 하나면 클립보드 이미지(Ctrl+V)를 그 목록에 추가한다.
+// ComfyUI 기본 처리는 이미지 노드가 아니면 새 Load Image 노드를 만들므로 capture 단계에서 먼저 받는다.
+// 최신 프론트엔드는 preventDefault된 붙여넣기를 건너뛰고, 그 검사가 없는 예전 버전은 stopPropagation으로 막는다
+function pasteIntoImageList(e) {
+  const canvas = app.canvas;
+  if (!canvas || canvas.selectOnly || isTextInput(e.target) || window.getSelection()?.isCollapsed === false) return;
+  // selected_nodes는 최신 프론트엔드에서 경고를 내므로 selectedItems가 없는 예전 버전에서만 쓴다
+  const selected = canvas.selectedItems ? [...canvas.selectedItems] : Object.values(canvas.selected_nodes ?? {});
+  const widgets = selected.map((item) => item.widgets?.find((w) => w.type === "IMAGE_LIST")).filter(Boolean);
+  if (widgets.length !== 1) return;
+  const files = [...(e.clipboardData?.items ?? [])]
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter(Boolean);
+  if (!files.length) return;
+  e.preventDefault();
+  e.stopPropagation();
+  widgets[0].addFiles(files);
+}
+
 app.registerExtension({
   name: "ComfyUI-Moon-Tools.ImageList",
+  setup() {
+    document.addEventListener("paste", pasteIntoImageList, true);
+  },
   getCustomWidgets() {
     return {
       IMAGE_LIST: (node, inputName) => createImageListWidget(node, inputName),

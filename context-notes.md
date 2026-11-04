@@ -373,3 +373,14 @@
 - **바뀌는 동작**: 예전 random On은 index를 보지 않고 Python에서 골랐다. 이제 randomize는 프론트엔드가 index 위젯 값을 바꾸므로 고른 번호가 위젯과 radio에 보이고, 기본 after 모드에서는 큐에 넣은 뒤 다음 실행용 값이 바뀐다(seed와 같다).
 - **옵션 직접 수정**: 현재 프론트엔드의 `widget.options`는 원본 객체를 감싼 Proxy(set 트랩 없음)라 `index.options.min/max` 대입이 원본에 반영되고 `computeNextNumberValue`가 그 값을 읽는다.
 - **확인**: 가짜 `app.js`와 ComfyUI_frontend main(2026-11-04)의 `computeNextNumberValue`, `addValueControlWidgets` 훅을 옮긴 가짜 위젯 위에서 실제 `web/text_list.js`를 Node 22로 실행했다(임시 스크립트, 저장소에는 넣지 않음). increment/decrement 순환(빈 항목 제외), randomize 3만 회 분포(각 1/3 ± 0.02), 항목 1개·0개, fixed, index 링크, 항목 수 변경, before 모드, min/max 복구, random 이전 7가지(위치/이름, true/false, 새 형식)를 확인했다. 수정 전 JS로 돌리면 increment가 1, 2, 2, 2…로 멈춰 실패한다.
+
+## 2026-11-04 Image List Ctrl+V 붙여넣기
+- **요청**: 캡처한 이미지를 Ctrl+V로 Image List 목록에 붙여넣기.
+- **ComfyUI 기본 동작(ComfyUI_frontend main `usePaste.ts`, 2026-11-04)**: document의 paste 리스너(bubble)가 클립보드에 `image/*`가 있으면 `canvas.current_node`가 선택되어 있고 이미지 노드(`previewMediaType === 'image'` 또는 `imgs`가 있음)일 때만 그 노드의 `pasteFile`/`pasteFiles`를 부른다. 아니면 새 Load Image 노드를 만든다. Image List는 이미지 노드가 아니라서 그대로 두면 Load Image가 생긴다.
+- **이미지 노드로 꾸미지 않은 이유**: `previewMediaType`/`imgs`는 노드 미리보기 그리기와 관련된 값이라 바꾸면 다른 동작까지 달라질 수 있다.
+- **방식**: 확장 `setup`에서 `document.addEventListener("paste", …, true)`(capture). 같은 document의 bubble 리스너보다 먼저 돈다. 처리하면 `preventDefault`(최신 usePaste는 `e.defaultPrevented`면 건너뜀)와 `stopPropagation`(그 검사가 없는 예전 버전 대비)을 둘 다 부른다.
+- **대상 노드**: `current_node`는 이름과 달리 `drawNode`가 마지막으로 그린 노드다(`LGraphCanvas.ts`). 그래서 선택 목록 `canvas.selectedItems`(없으면 예전 `selected_nodes`)에서 IMAGE_LIST 위젯이 있는 노드를 찾는다. 하나일 때만 붙여넣고, 두 개 이상이면 어디에 넣을지 모호해 ComfyUI에 맡긴다. 다른 노드나 그룹이 함께 선택되어 있어도 Image List가 하나면 붙여넣는다. `selected_nodes`는 최신 버전에서 deprecated 경고를 내서 대체로만 쓴다.
+- **썸네일 목록 클릭**: `DomWidget.vue`가 DOM 위젯을 click/focus하면 `selectNode`로 그 노드를 선택하므로, 목록을 클릭한 뒤 Ctrl+V해도 된다.
+- **건너뛰는 경우**: ComfyUI `shouldIgnoreCopyPaste`와 같은 기준으로 글 입력칸(textarea, contenteditable, 버튼·체크박스·radio 등을 뺀 input)과 글자가 선택된 상태, 그리고 `canvas.selectOnly`. 이때는 ComfyUI도 붙여넣지 않거나 자기 방식대로 처리한다. `linearMode`는 확장에서 알 수 없어 보지 않는다. Ctrl+Shift+V(연결 포함 노드 붙여넣기)는 클립보드에 이미지가 있을 때만 겹치는데, paste 이벤트에서 Shift를 알 수 없어 구분하지 않는다.
+- **업로드**: 기존 `addFiles`(파일 선택·드래그와 같은 경로)를 쓴다. 최신 프론트엔드도 붙여넣은 이미지를 하위 폴더 없이 `input`에 올린다(예전 ComfyUI의 `pasted/` 하위 폴더는 없어졌다). 캡처 이미지 이름은 보통 `image.png`이고, 서버 `image_upload`가 같은 내용이면 기존 파일을 쓰고 다르면 `image (1).png`처럼 번호를 붙인다(ComfyUI master `server.py`).
+- **확인**: 헤드리스 Chrome에서 가짜 `app.js`/`api.js`와 실제 `web/image_list.js`로 위젯을 만들고, ComfyUI usePaste처럼 확장보다 먼저 document bubble 리스너를 등록한 뒤 실제 `ClipboardEvent`(DataTransfer + File)를 보냈다(임시 스크립트, 저장소에는 넣지 않음). 17가지 경우가 통과했다. ComfyUI 화면에서 실제 Ctrl+V는 ComfyUI PC에서 확인해야 한다.

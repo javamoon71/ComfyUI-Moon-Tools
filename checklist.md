@@ -324,3 +324,12 @@ Any Index Switch의 `value`로 나온 텍스트 배열을 받아, 항목 수만�
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 제어 위젯이 보이고, 예전 워크플로의 random On 노드가 randomize로 열리는지 확인
+
+## Plan 22 — Image List에 Ctrl+V로 캡처 이미지 붙여넣기
+선택된 Image List 노드에 클립보드 이미지를 붙여넣으면 업로드해 목록 끝에 추가한다. UI(`web/image_list.js`)만 바꾼다.
+- [x] `setup`에서 document paste capture 리스너 등록, 선택된 Image List가 하나일 때만 이미지 파일을 `addFiles`로 업로드
+- [x] ComfyUI 기본 처리(새 Load Image 노드 생성)를 preventDefault + stopPropagation으로 막음, 글 입력칸·글자 선택·selectOnly는 ComfyUI와 같은 기준으로 건너뜀
+- [x] 헤드리스 Chrome에서 실제 ClipboardEvent로 17가지 경우 확인(선택/미선택/두 개 선택/텍스트/입력칸/예전 selected_nodes 등), Python 테스트
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 캡처(Win+Shift+S) 후 노드 선택 + Ctrl+V로 목록에 추가되는지 확인
