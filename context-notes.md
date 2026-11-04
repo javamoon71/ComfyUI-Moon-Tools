@@ -361,3 +361,15 @@
 - **항목 수 저장 위치**: LiteGraph `configure`는 워크플로를 불러올 때 연결된 슬롯마다 `onConnectionsChange`를 부른다. 항목 수를 노드 변수에만 두면 그때 0으로 보고 실행 후 늘어난 출력을 지운다. 그래서 `node.properties.textCount`에 저장해 워크플로와 함께 저장·복원되게 했다.
 - **상한**: JS는 `nodeData.output.length`(Python `MAX_OUTPUTS` 32)를 쓴다. 상수를 두 곳에 두지 않는다.
 - **확인**: 가짜 LiteGraph 노드(Node 22)로 연결 → 추가, 끊기 → 정리, 실행 count 4 → 4개 유지, 마지막 출력 연결 → 하나 더, 저장 후 configure로 불러오기 → 유지, 32개 모두 연결 → 32에서 멈춤을 확인했다.
+
+## 2026-11-04 Text List random → 생성 후 제어
+- **요청**: Text List의 random 기능을 seed 위젯처럼 fixed / increment / decrement / randomize로 쓰게(사용자가 제어 위젯 스크린샷 첨부). 2026-10-21 "seed 위젯을 쓰지 않은 이유"에 적어 둔 전환이다.
+- **방식**: Any Index Switch와 같다. `index` INT에 `"control_after_generate": "fixed"`를 붙이고, `nodeCreated`에서 제어 위젯(`index.linkedWidgets[0]`)의 `beforeQueued`/`afterQueued`를 감싸 0 ~ (내용 있는 항목 수 - 1) 안에서 순환시킨다. 범위를 넓혔다 되돌리는 이유와 순서는 2026-10-27 "생성 후 제어 순환"과 같다. 항목 수는 TEXT_LIST 위젯의 `itemCount`(빈 항목 제외, `refreshIndexRange`와 같은 기준)로 받는다.
+- **함수는 복사**: `wrapIndexControl`은 `web/any_index_switch.js`와 거의 같지만 개수를 세는 기준이 달라 파일마다 둔다. 공용 모듈을 `web/`에 두면 ComfyUI가 그것도 확장으로 불러오고, 동작 중인 Any Index Switch 코드를 건드려야 해서 피했다.
+- **Python**: `random` 입력, `IS_CHANGED`(random일 때 NaN), 전용 `random.Random()`을 지웠다. 이제 위젯이 바뀐 index를 보내므로 기본 캐시(입력이 같으면 재사용)가 맞다. 예전 API 프롬프트에 `random`이 있어도 ComfyUI `get_input_data`가 선언되지 않은 입력을 건너뛰어 에러가 나지 않는다.
+- **예전 워크플로**: `widgets_values`가 `[text, index, random, show_title]`로 저장되어 있다. 지금 위젯은 `[text, index, control_after_generate, show_title]`(제어 위젯은 `options.serialize`만 false라 `widgets_values`에 저장된다)이라 개수가 같다.
+  - 위치로 복원하면(기본, `LiteGraph.namedValuesRestore` false) random의 true/false가 제어 위젯 값으로 들어간다. 이름으로 복원하면 `random` 이름이 없어 제어 값은 기본 fixed로 남는다(ComfyUI_frontend main `LGraphNode.configure`, `widgetValueStore.getRestoredWidgetValue`, 2026-11-04).
+  - 둘 다 맞지 않으므로 `onConfigure`에서 `widgets_values_named.random`(있으면) 또는 제어 위젯 위치의 `widgets_values`가 boolean이면 On → randomize, Off → fixed로 바꾼다. 예전 ComfyUI가 KSampler seed에 했던 true/false → randomize/fixed 변환과 같다. 새로 저장한 워크플로는 이 자리가 문자열이고 이름에 random이 없어 건드리지 않는다.
+- **바뀌는 동작**: 예전 random On은 index를 보지 않고 Python에서 골랐다. 이제 randomize는 프론트엔드가 index 위젯 값을 바꾸므로 고른 번호가 위젯과 radio에 보이고, 기본 after 모드에서는 큐에 넣은 뒤 다음 실행용 값이 바뀐다(seed와 같다).
+- **옵션 직접 수정**: 현재 프론트엔드의 `widget.options`는 원본 객체를 감싼 Proxy(set 트랩 없음)라 `index.options.min/max` 대입이 원본에 반영되고 `computeNextNumberValue`가 그 값을 읽는다.
+- **확인**: 가짜 `app.js`와 ComfyUI_frontend main(2026-11-04)의 `computeNextNumberValue`, `addValueControlWidgets` 훅을 옮긴 가짜 위젯 위에서 실제 `web/text_list.js`를 Node 22로 실행했다(임시 스크립트, 저장소에는 넣지 않음). increment/decrement 순환(빈 항목 제외), randomize 3만 회 분포(각 1/3 ± 0.02), 항목 1개·0개, fixed, index 링크, 항목 수 변경, before 모드, min/max 복구, random 이전 7가지(위치/이름, true/false, 새 형식)를 확인했다. 수정 전 JS로 돌리면 increment가 1, 2, 2, 2…로 멈춰 실패한다.

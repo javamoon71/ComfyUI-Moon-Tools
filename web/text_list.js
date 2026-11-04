@@ -45,11 +45,14 @@ function createTextListWidget(node, inputName) {
   // 편집 중인 입력창은 한 줄 여유를 두되 최대 줄 수를 넘으면 입력창 안에서 스크롤한다
   const editLineCount = (i) => Math.min(items[i].text.split("\n").length + 1, MAX_EDIT_LINES);
 
+  // Python이 빈 항목을 건너뛰므로 index로 고를 수 있는 항목은 내용이 있는 것뿐이다
+  const itemCount = () => items.filter((v) => v.text.trim()).length;
+
   // index 위젯의 최대값을 항목 수에 맞춰 화살표로 범위를 넘지 않게 한다
   const refreshIndexRange = () => {
     const indexWidget = node.widgets?.find((w) => w.name === "index");
     if (!indexWidget) return;
-    const max = Math.max(0, items.filter((v) => v.text.trim()).length - 1);
+    const max = Math.max(0, itemCount() - 1);
     indexWidget.options.max = max;
     if (indexWidget.value > max) indexWidget.value = max;
   };
@@ -261,11 +264,48 @@ function createTextListWidget(node, inputName) {
     getMinHeight: () => TITLE_HEIGHT + 2 + MIN_VIEW_LINES * LINE_HEIGHT + ROW_PADDING + GAP + ADD_BUTTON_HEIGHT + 8,
   });
 
+  widget.itemCount = itemCount;
   widget.refreshIndexRange = refreshIndexRange;
   widget.syncRadios = syncRadios;
   widget.render = render;
   render();
   return { widget };
+}
+
+// 생성 후 제어가 index를 항목 범위(0 ~ 개수-1) 안에서 순환시키게 한다. 방식은 web/any_index_switch.js와 같다.
+// 기본 제어는 min/max에서 멈추고 randomize는 max를 뽑지 않으므로, 제어가 도는 동안만 범위를 넓힌 뒤 넘친 값을 반대쪽 끝으로 돌린다.
+// index 입력이 링크로 연결되어 있으면 기본 제어가 값을 바꾸지 않는다
+function wrapIndexControl(index, control, itemCount) {
+  for (const hook of ["beforeQueued", "afterQueued"]) {
+    const original = control[hook];
+    control[hook] = function (...args) {
+      const count = itemCount();
+      if (!count || control.value === "fixed") return original?.apply(this, args);
+      const { min, max } = index.options;
+      index.value %= count;
+      index.options.min = control.value === "randomize" ? 0 : -1;
+      index.options.max = count;
+      try {
+        original?.apply(this, args);
+      } finally {
+        index.options.min = min;
+        index.options.max = max;
+      }
+      const wrapped = index.value >= count ? 0 : index.value < 0 ? count - 1 : index.value;
+      if (wrapped !== index.value) {
+        index.value = wrapped;
+        index.callback?.(wrapped);
+      }
+    };
+  }
+}
+
+// random(On/Off) 위젯이 있던 예전 워크플로는 그 값이 지금의 생성 후 제어 자리(또는 이름 random)에 저장되어 있다.
+// 위치로 복원하든 이름으로 복원하든 제어 모드가 맞게 들어오지 않으므로 On은 randomize, Off는 fixed로 옮긴다
+function migrateRandom(node, control, info) {
+  const position = node.widgets.filter((w) => w.serialize !== false).indexOf(control);
+  const saved = info?.widgets_values_named ? info.widgets_values_named.random : info?.widgets_values?.[position];
+  if (typeof saved === "boolean") control.value = saved ? "randomize" : "fixed";
 }
 
 app.registerExtension({
@@ -278,6 +318,7 @@ app.registerExtension({
   // TEXT_LIST 위젯이 만들어질 때는 index 위젯이 아직 없어서 노드 생성 후 한 번 더 맞춘다
   // show_title 위젯도 같은 이유로 여기서 연결하고, 워크플로를 불러와 값이 바뀐 뒤에도 다시 그린다
   // index 위젯을 화살표 등으로 바꾸면 radio 선택도 따라가게 한다
+  // index의 생성 후 제어는 항목 수 안에서 순환하게 하고, 예전 random 값은 워크플로를 불러올 때 제어 모드로 옮긴다
   nodeCreated(node) {
     const textList = node.widgets?.find((w) => w.type === "TEXT_LIST");
     if (!textList) return;
@@ -292,6 +333,8 @@ app.registerExtension({
         return result;
       };
     }
+    const control = index?.linkedWidgets?.[0];
+    if (control) wrapIndexControl(index, control, textList.itemCount);
 
     const showTitle = node.widgets.find((w) => w.name === "show_title");
     if (showTitle) {
@@ -305,6 +348,7 @@ app.registerExtension({
     const onConfigure = node.onConfigure;
     node.onConfigure = function (...args) {
       const result = onConfigure?.apply(this, args);
+      if (control) migrateRandom(node, control, args[0]);
       textList.render();
       return result;
     };

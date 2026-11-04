@@ -314,3 +314,13 @@ Any Index Switch의 `value`로 나온 텍스트 배열을 받아, 항목 수만�
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 `text0` 연결 시 `text1`이 바로 생기는지 확인
+
+## Plan 21 — Text List random을 생성 후 제어로 바꾸기
+`random` On/Off 대신 seed 위젯처럼 `index` 아래에서 fixed / increment / decrement / randomize를 고르게 한다(사용자가 제어 위젯 스크린샷 첨부). Any Index Switch(Plan 생성 후 제어 순환)와 같은 방식이다.
+- [x] `random` 입력, `IS_CHANGED`, 전용 난수 생성기 제거, `index`에 `control_after_generate: "fixed"` (`nodes/text_list.py`)
+- [x] 생성 후 제어가 내용 있는 항목 수(0 ~ 개수-1) 안에서 순환하게 함 (`web/text_list.js`)
+- [x] 예전 워크플로의 `random` 값을 제어 모드로 옮김(On → randomize, Off → fixed)
+- [x] 단위 테스트 수정 + 가짜 제어 위젯(프론트엔드 main 로직 이식)으로 순환·분포·링크·before 모드·이전 확인
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 제어 위젯이 보이고, 예전 워크플로의 random On 노드가 randomize로 열리는지 확인

@@ -52,32 +52,17 @@ class TestTextList(unittest.TestCase):
         self.assertEqual(self.pick(text, 1), ("plain", ""))
         self.assertEqual(self.pick(text, 2), ("no title key", ""))
 
-    def test_random_returns_matching_title(self):
-        text = json.dumps([{"title": "A", "text": "a"}, {"title": "B", "text": "b"}])
-        for _ in range(50):
-            body, title = self.pick(text, 0, random=True)
-            self.assertEqual(title, body.upper())
-
     def test_show_title_off_still_outputs_title(self):
         text = json.dumps([{"title": "Style", "text": "body"}])
         self.assertEqual(self.pick(text, 0, show_title=False), ("body", "Style"))
-        self.assertEqual(TextList.IS_CHANGED(text, 0, show_title=False), TextList.IS_CHANGED(text, 0, show_title=True))
 
     def test_json_empty_list(self):
         self.assertEqual(self.pick("[]", 0), ("", ""))
 
-    def test_random_picks_from_items(self):
-        items = {"a", "b", "c"}
-        picked = {self.pick("a\n\nb\nc", 0, random=True)[0] for _ in range(200)}
-        self.assertEqual(picked, items)
-
-    def test_random_empty_text(self):
-        self.assertEqual(self.pick("", 0, random=True), ("", ""))
-
     def test_text_list_outputs_all_items(self):
         text = json.dumps([{"title": "A", "text": " a "}, {"title": "빈", "text": " "}, "b\nc"])
         self.assertEqual(self.node.select(text, 0)[3], ["a", "b\nc"])
-        self.assertEqual(self.node.select(text, 1, random=True)[3], ["a", "b\nc"])
+        self.assertEqual(self.node.select(text, 1)[3], ["a", "b\nc"])
         self.assertEqual(self.node.select("", 0)[3], [])
         self.assertEqual(TextList.OUTPUT_IS_LIST, (False, False, True, True))
 
@@ -91,10 +76,13 @@ class TestTextList(unittest.TestCase):
     def test_search_aliases(self):
         self.assertEqual(TextList.SEARCH_ALIASES, ["moon", "text", "textlist", "text list"])
 
-    def test_is_changed_only_when_random(self):
-        changed = TextList.IS_CHANGED("a\nb", 0, random=True)
-        self.assertNotEqual(changed, changed)
-        self.assertEqual(TextList.IS_CHANGED("a\nb", 0, random=False), TextList.IS_CHANGED("a\nb", 0, random=False))
+    def test_index_has_control_after_generate(self):
+        # 무작위 선택은 random 입력 대신 index의 생성 후 제어(randomize)로 한다. 기본 fixed라 예전 index는 바뀌지 않는다
+        required = TextList.INPUT_TYPES()["required"]
+        self.assertEqual(required["index"][1]["control_after_generate"], "fixed")
+        self.assertNotIn("random", required)
+        self.assertEqual(list(required), ["text", "index", "show_title"])
+        self.assertFalse(hasattr(TextList, "IS_CHANGED"))
 
 
 if __name__ == "__main__":

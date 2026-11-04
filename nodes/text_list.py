@@ -1,9 +1,5 @@
 # 여러 줄 문자열을 리스트로 관리하고 index에 해당하는 항목을 출력하는 노드
 import json
-import random as _random
-
-# 다른 노드가 전역 random 시드를 고정해도 영향받지 않도록 별도 인스턴스를 쓴다
-_rng = _random.Random()
 
 
 def item_pair(item):
@@ -32,8 +28,9 @@ class TextList:
         return {
             "required": {
                 "text": ("TEXT_LIST", {"default": ""}),
-                "index": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF}),
-                "random": ("BOOLEAN", {"default": False, "label_on": "On", "label_off": "Off"}),
+                # 프론트엔드가 생성 후 제어 위젯을 붙인다. 항목 수 안에서 순환시키는 부분과
+                # 예전 random 값을 제어 모드로 옮기는 부분은 web/text_list.js에 있다
+                "index": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": "fixed"}),
                 # 목록 UI에서 제목을 보일지만 정한다. 출력에는 영향이 없다
                 "show_title": ("BOOLEAN", {"default": True, "label_on": "On", "label_off": "Off"}),
             }
@@ -49,15 +46,10 @@ class TextList:
     # 노드 검색은 name/display_name 외에 이 별칭도 본다. "moon"은 이름에 없어서 별칭이 있어야 찾힌다
     SEARCH_ALIASES = ["moon", "text", "textlist", "text list"]
 
-    @classmethod
-    def IS_CHANGED(cls, text, index, random=False, show_title=True):
-        # NaN은 자기 자신과도 같지 않아서 ComfyUI가 매번 다시 실행한다
-        return float("nan") if random else ""
-
-    def select(self, text, index, random=False, show_title=True):
+    def select(self, text, index, show_title=True):
         items = parse_items(text)
         if not items:
             return ("", "", [], [])
         # show_title은 UI 표시만 정하므로 숨겨도 제목은 출력한다
-        title, body = _rng.choice(items) if random else items[index % len(items)]
+        title, body = items[index % len(items)]
         return (title, body, [p[0] for p in items], [p[1] for p in items])
