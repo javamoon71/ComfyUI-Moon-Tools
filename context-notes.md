@@ -353,3 +353,11 @@
 - **32개 초과**: 앞의 32개만 내고 `logging.warning`. 사용할 항목만 연결하는 경우가 많아 실행을 멈추지 않았다.
 - **이름**: 키 `MoonTextListUnpack`. `TextListUnpack`은 다른 팩과 겹칠 수 있어 `Moon` 접두어를 붙였다. 카테고리는 Text List와 같은 `utils/text`. 출력 이름은 Text List 번호처럼 0부터 센다.
 - **확인 범위**: 단위 테스트 6개, 가짜 LiteGraph 노드(Node 22)로 슬롯 조정. 실제 ComfyUI 화면은 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-04 Text List Unpack 출력 연결 시 추가
+- **요청**: 출력이 다른 노드와 연결되면 하나가 더 생기게. 처음에는 `text0`(사용자 표현 "index 0") 하나, 연결하면 `text1`. Unpack 노드 출력 이야기로 해석했다(Any Index Switch의 `index` 출력은 INT 하나라 늘릴 대상이 아니다).
+- **실행 후 맞춤은 유지**: 지난번에 고른 "실행 후 항목 수만큼"을 없애라는 말은 없어서 둘을 합쳤다. 출력 수 = `min(32, max(1, 마지막 실행 항목 수, 마지막 연결 출력 + 2))`. Plan 19의 `마지막 연결 + 1`은 `+ 2`(뒤에 빈 출력 하나)로 바뀌었다.
+- **시점**: Any Index Switch 입력과 같이 `onConnectionsChange` 뒤 `queueMicrotask`로 맞춘다. 링크를 다른 출력으로 옮기면 끊기와 연결이 이어서 오기 때문이다.
+- **항목 수 저장 위치**: LiteGraph `configure`는 워크플로를 불러올 때 연결된 슬롯마다 `onConnectionsChange`를 부른다. 항목 수를 노드 변수에만 두면 그때 0으로 보고 실행 후 늘어난 출력을 지운다. 그래서 `node.properties.textCount`에 저장해 워크플로와 함께 저장·복원되게 했다.
+- **상한**: JS는 `nodeData.output.length`(Python `MAX_OUTPUTS` 32)를 쓴다. 상수를 두 곳에 두지 않는다.
+- **확인**: 가짜 LiteGraph 노드(Node 22)로 연결 → 추가, 끊기 → 정리, 실행 count 4 → 4개 유지, 마지막 출력 연결 → 하나 더, 저장 후 configure로 불러오기 → 유지, 32개 모두 연결 → 32에서 멈춤을 확인했다.

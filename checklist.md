@@ -305,3 +305,12 @@ Any Index Switch의 `value`로 나온 텍스트 배열을 받아, 항목 수만�
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 Any Index Switch → Unpack 연결, 실행 후 출력 수 변화, 워크플로 저장·불러오기 확인
+
+## Plan 20 — Text List Unpack 출력을 연결할 때마다 하나씩 추가
+처음에는 `text0` 하나, 연결하면 `text1`이 생기게 한다(사용자 요청). 실행 후 항목 수만큼 보이는 동작(Plan 19)은 그대로 둔다.
+- [x] `onConnectionsChange`에서 마지막 연결 출력 뒤에 빈 출력 하나를 둠, 끊으면 정리 (`web/text_list_unpack.js`)
+- [x] 항목 수를 `properties.textCount`에 저장해 워크플로를 불러올 때 출력이 줄지 않게 함
+- [x] 가짜 LiteGraph 노드로 연결·끊기·실행·불러오기·32개 상한 확인, Python 테스트
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 `text0` 연결 시 `text1`이 바로 생기는지 확인
