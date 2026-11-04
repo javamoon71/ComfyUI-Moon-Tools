@@ -45,10 +45,6 @@ class TestImageList(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.node.select("[]", 0)
 
-    def test_random_picks_from_items(self):
-        picked = {ImageList.pick(self.images, 0, random=True) for _ in range(200)}
-        self.assertEqual(picked, {"a.png", "b.png", "c.jpg"})
-
     def test_load_rgb(self):
         image, mask = self.node.select(self.images, 0)
         self.assertEqual(tuple(image.shape), (1, 3, 4, 3))
@@ -66,10 +62,15 @@ class TestImageList(unittest.TestCase):
             self.node.select(json.dumps(["nope.png"]), 0)
 
     def test_is_changed(self):
-        changed = ImageList.IS_CHANGED(self.images, 0, random=True)
-        self.assertNotEqual(changed, changed)
         self.assertEqual(ImageList.IS_CHANGED(self.images, 0), ImageList.IS_CHANGED(self.images, 3))
         self.assertNotEqual(ImageList.IS_CHANGED(self.images, 0), ImageList.IS_CHANGED(self.images, 1))
+        self.assertEqual(ImageList.IS_CHANGED("[]", 0), "")
+
+    def test_index_has_control_after_generate(self):
+        # 무작위 선택은 random 입력 대신 index의 생성 후 제어(randomize)로 한다. 기본 fixed라 예전 index는 바뀌지 않는다
+        required = ImageList.INPUT_TYPES()["required"]
+        self.assertEqual(required["index"][1]["control_after_generate"], "fixed")
+        self.assertEqual(list(required), ["images", "index"])
 
 
 if __name__ == "__main__":

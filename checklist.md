@@ -333,3 +333,13 @@ Any Index Switch의 `value`로 나온 텍스트 배열을 받아, 항목 수만�
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 캡처(Win+Shift+S) 후 노드 선택 + Ctrl+V로 목록에 추가되는지 확인
+
+## Plan 23 — Image List random을 생성 후 제어로 바꾸기
+Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment / decrement / randomize를 쓴다.
+- [x] `random` 입력, 전용 난수 생성기, IS_CHANGED의 NaN 분기 제거, `index`에 `control_after_generate: "fixed"` (`nodes/image_list.py`). 파일 수정 시각 IS_CHANGED는 유지
+- [x] 순환·random 이전 함수를 `web/index_control.js`로 옮겨 Text List와 함께 씀
+- [x] Image List가 이미지 수(0 ~ 개수-1) 안에서 순환, 예전 random 값 이전 (`web/image_list.js`)
+- [x] 단위 테스트 수정 + 가짜 제어 위젯으로 Text List·Image List 모두 확인, 수정 전 Image List JS는 실패 확인
+- [x] README 반영(예전 increment 팁을 생성 후 제어 설명으로 바꿈)
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 Image List 제어 위젯이 보이고, 예전 워크플로의 random On 노드가 randomize로 열리는지 확인

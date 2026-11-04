@@ -384,3 +384,13 @@
 - **건너뛰는 경우**: ComfyUI `shouldIgnoreCopyPaste`와 같은 기준으로 글 입력칸(textarea, contenteditable, 버튼·체크박스·radio 등을 뺀 input)과 글자가 선택된 상태, 그리고 `canvas.selectOnly`. 이때는 ComfyUI도 붙여넣지 않거나 자기 방식대로 처리한다. `linearMode`는 확장에서 알 수 없어 보지 않는다. Ctrl+Shift+V(연결 포함 노드 붙여넣기)는 클립보드에 이미지가 있을 때만 겹치는데, paste 이벤트에서 Shift를 알 수 없어 구분하지 않는다.
 - **업로드**: 기존 `addFiles`(파일 선택·드래그와 같은 경로)를 쓴다. 최신 프론트엔드도 붙여넣은 이미지를 하위 폴더 없이 `input`에 올린다(예전 ComfyUI의 `pasted/` 하위 폴더는 없어졌다). 캡처 이미지 이름은 보통 `image.png`이고, 서버 `image_upload`가 같은 내용이면 기존 파일을 쓰고 다르면 `image (1).png`처럼 번호를 붙인다(ComfyUI master `server.py`).
 - **확인**: 헤드리스 Chrome에서 가짜 `app.js`/`api.js`와 실제 `web/image_list.js`로 위젯을 만들고, ComfyUI usePaste처럼 확장보다 먼저 document bubble 리스너를 등록한 뒤 실제 `ClipboardEvent`(DataTransfer + File)를 보냈다(임시 스크립트, 저장소에는 넣지 않음). 17가지 경우가 통과했다. ComfyUI 화면에서 실제 Ctrl+V는 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-04 Image List random → 생성 후 제어
+- **요청**: Text List처럼 Image List의 random On/Off도 생성 후 제어(fixed/increment/decrement/randomize)로.
+- **Python**: `random` 입력과 전용 `random.Random()`을 지웠다. `IS_CHANGED`는 random일 때 NaN을 내던 분기만 지우고, 같은 이름 파일을 덮어쓰면 다시 실행되게 하는 "이름:수정 시각"은 그대로 둔다. 예전 API 프롬프트의 `random`은 ComfyUI가 선언되지 않은 입력으로 건너뛴다(Text List 기록과 같음).
+- **예전 워크플로**: `widgets_values`가 `[images, index, random]`, 지금은 `[images, index, control_after_generate]`라 Text List와 같은 자리(2번)에 random 값이 들어온다. 같은 `migrateRandom`으로 On → randomize, Off → fixed.
+- **공용 모듈 `web/index_control.js`**: Text List 기록에서는 "함수는 복사"로 정했지만, Image List까지 같은 코드(`wrapIndexControl`, `migrateRandom`)가 세 번째로 생겨 Text List·Image List가 함께 쓰는 모듈로 뺐다. ComfyUI 서버는 WEB_DIRECTORY의 `**/*.js`를 모두 확장으로 import하지만 이 파일은 함수만 export해서 import돼도 아무 일도 하지 않는다. 같은 폴더에서 `./index_control.js`로 import한다(서빙 경로 `/extensions/ComfyUI-Moon-Tools/`).
+  - Any Index Switch는 그대로 두었다. 개수를 세는 기준(연결된 입력)과 제어 위젯을 찾는 위치가 달라 손대려면 그 파일도 바꿔야 해서 요청 범위 밖이다. `wrapIndexControl(index, control, count)`는 그대로 쓸 수 있는 모양이다.
+- **이미지 개수**: `items.length`. JS `parseValue`가 빈 이름을 이미 빼고, Python `parse_items`도 같은 기준이라 index 번호가 맞는다.
+- **README 팁**: "2026-10-27 Text List 통합" 기록의 "Image List README의 `index` increment 팁은 동작하지 않을 수 있다"는 이번에 `control_after_generate`가 붙어 실제 기능이 됐다. 팁은 생성 후 제어 설명과 random 이전 안내로 바꿨다.
+- **확인**: 가짜 `app.js`/`api.js`와 프론트엔드 main 제어 로직을 옮긴 가짜 위젯으로 실제 `text_list.js`·`image_list.js`(+ `index_control.js`)를 Node 22에서 실행했다(임시 스크립트, 저장소에는 넣지 않음). 두 노드 모두 increment/decrement 순환, randomize 3만 회 분포, 1개·0개, fixed, index 링크, 개수 변경, before 모드, random 이전 7가지가 통과했다. 수정 전 Image List JS는 increment가 1, 2, 2, 2…로 멈춰 실패한다.

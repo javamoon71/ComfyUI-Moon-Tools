@@ -1,14 +1,10 @@
 # 업로드한 이미지 목록을 관리하고 index에 해당하는 이미지를 IMAGE/MASK로 출력하는 노드
 import json
 import os
-import random as _random
 
 import numpy as np
 import torch
 from PIL import Image, ImageOps
-
-# 다른 노드가 전역 random 시드를 고정해도 영향받지 않도록 별도 인스턴스를 쓴다
-_rng = _random.Random()
 
 
 def parse_items(text):
@@ -50,8 +46,9 @@ class ImageList:
         return {
             "required": {
                 "images": ("IMAGE_LIST", {"default": "[]"}),
-                "index": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF}),
-                "random": ("BOOLEAN", {"default": False, "label_on": "On", "label_off": "Off"}),
+                # 프론트엔드가 생성 후 제어 위젯을 붙인다. 이미지 수 안에서 순환시키는 부분과
+                # 예전 random 값을 제어 모드로 옮기는 부분은 web/index_control.js에 있다
+                "index": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": "fixed"}),
             }
         }
 
@@ -61,19 +58,14 @@ class ImageList:
     CATEGORY = "image"
 
     @staticmethod
-    def pick(images, index, random=False):
+    def pick(images, index):
         items = parse_items(images)
         if not items:
             raise ValueError("Moon Image List: 등록된 이미지가 없습니다.")
-        if random:
-            return _rng.choice(items)
         return items[index % len(items)]
 
     @classmethod
-    def IS_CHANGED(cls, images, index, random=False):
-        # NaN은 자기 자신과도 같지 않아서 ComfyUI가 매번 다시 실행한다
-        if random:
-            return float("nan")
+    def IS_CHANGED(cls, images, index):
         # 같은 이름의 파일이 덮어써지면 다시 실행되도록 수정 시각을 함께 쓴다
         try:
             name = cls.pick(images, index)
@@ -81,8 +73,8 @@ class ImageList:
         except (ValueError, OSError):
             return ""
 
-    def select(self, images, index, random=False):
-        name = self.pick(images, index, random)
+    def select(self, images, index):
+        name = self.pick(images, index)
         path = image_path(name)
         if not os.path.isfile(path):
             raise FileNotFoundError(f"Moon Image List: 이미지 파일을 찾을 수 없습니다: {name}")

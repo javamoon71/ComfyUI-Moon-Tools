@@ -1,6 +1,7 @@
 // Image List 노드의 IMAGE_LIST 입력을 썸네일 목록으로 보여주고, 이미지 업로드/삭제로 항목을 관리하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { migrateRandom, wrapIndexControl } from "./index_control.js";
 
 const THUMB_SIZE = 128;
 const ADD_BUTTON_HEIGHT = 30;
@@ -209,6 +210,7 @@ function createImageListWidget(node, inputName) {
     getMinHeight: () => THUMB_SIZE + 6 + GAP + ADD_BUTTON_HEIGHT + 8,
   });
 
+  widget.itemCount = () => items.length;
   widget.refreshIndexRange = refreshIndexRange;
   widget.addFiles = addFiles;
   render();
@@ -257,10 +259,22 @@ app.registerExtension({
     };
   },
   // IMAGE_LIST 위젯이 만들어질 때는 index 위젯이 아직 없어서 노드 생성 후 한 번 더 맞춘다
+  // index의 생성 후 제어는 이미지 수 안에서 순환하게 하고, 예전 random 값은 워크플로를 불러올 때 제어 모드로 옮긴다
   nodeCreated(node) {
     const widget = node.widgets?.find((w) => w.type === "IMAGE_LIST");
     if (!widget) return;
     widget.refreshIndexRange();
+    const index = node.widgets.find((w) => w.name === "index");
+    const control = index?.linkedWidgets?.[0];
+    if (control) {
+      wrapIndexControl(index, control, widget.itemCount);
+      const onConfigure = node.onConfigure;
+      node.onConfigure = function (...args) {
+        const result = onConfigure?.apply(this, args);
+        migrateRandom(node, control, args[0]);
+        return result;
+      };
+    }
     // 목록 밖(제목, 다른 위젯 영역)에 놓아도 이 노드에 추가한다
     node.onDragOver = (e) => !!e.dataTransfer?.types?.includes("Files");
     node.onDragDrop = (e) => {

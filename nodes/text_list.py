@@ -29,7 +29,7 @@ class TextList:
             "required": {
                 "text": ("TEXT_LIST", {"default": ""}),
                 # 프론트엔드가 생성 후 제어 위젯을 붙인다. 항목 수 안에서 순환시키는 부분과
-                # 예전 random 값을 제어 모드로 옮기는 부분은 web/text_list.js에 있다
+                # 예전 random 값을 제어 모드로 옮기는 부분은 web/index_control.js에 있다
                 "index": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": "fixed"}),
                 # 목록 UI에서 제목을 보일지만 정한다. 출력에는 영향이 없다
                 "show_title": ("BOOLEAN", {"default": True, "label_on": "On", "label_off": "Off"}),
