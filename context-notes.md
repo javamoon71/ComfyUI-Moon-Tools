@@ -326,3 +326,14 @@
   - webp: exif를 넘기지 않으면 Pillow가 단순 형식(VP8 청크만)으로 저장한다. 알파가 있으면 VP8X+ALPH가 필요해서 남는다.
 - **Off일 때 webp 빈 EXIF는 그대로 둠**: 요청 범위가 새 옵션이라 기존 Off 동작은 바꾸지 않았다.
 - **확인**: 단위 테스트(png 텍스트 없음, jpg JFIF 없음 + 픽셀 데이터 동일, webp 단순 형식 + 알파 유지)와 청크 나열 스크립트(임시, 저장소에는 넣지 않음). ComfyUI 화면은 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-04 Text List 항목 radio로 index 선택
+- **요청**: 텍스트 입력창 앞에 radio 버튼을 달고, 고르면 UI의 index 값이 그 항목으로 설정되게 한다.
+- **위치**: 행 = 번호 → radio → 제목/내용 → 삭제 버튼. "입력창 앞"이라 번호는 그대로 두고 그 뒤에 넣었다. 높이를 제목 칸(`TITLE_HEIGHT`)과 같게 해 번호·제목과 한 줄에 맞춘다. Chrome은 radio에 높이를 줘도 원 크기는 그대로 두고 가운데에 그린다(스크린샷 확인).
+- **값**: radio 값은 화면 번호(내용이 빈 항목을 뺀 순서)다. Python이 빈 항목을 건너뛰므로 index와 같은 기준이다. 빈 항목(`-`)은 번호가 없어 radio를 비활성으로 둔다.
+- **양방향 동기화**: radio를 고르면 `index.value`를 바꾸고 `index.callback?.(v)`를 부른다(Any Index Switch와 같은 방식). 캔버스 위젯 숫자가 바로 보이게 `node.setDirtyCanvas(true, false)`를 부른다. 반대로 `nodeCreated`에서 index 위젯 callback을 감싸 화살표·입력으로 바꿔도 radio가 따라가게 했다. `refreshLabels`(다시 그리기, 내용 입력, 범위 제한) 끝에서도 맞춘다.
+- **같은 name을 쓰지 않음**: 노드마다 DOM이 같은 문서에 있어 radio `name`이 같으면 다른 Text List 노드와 한 그룹이 된다. name 없이 `syncRadios`가 checked를 직접 정한다.
+- **편집 중 클릭**: 버튼과 같이 mousedown 기본 동작을 막아 입력창 blur → 다시 그리기로 클릭이 사라지지 않게 했다. 편집은 이어진다.
+- **내용을 지워 번호가 당겨질 때**: index 값은 그대로이고 같은 번호가 된 항목의 radio가 선택된다. 실행 결과도 그 항목이라 표시와 출력이 맞다.
+- **random On / index 링크**: radio는 그대로 index 위젯만 바꾼다. 이때 출력에는 쓰이지 않는다(README에 적음).
+- **확인**: 가짜 `app.js`와 index 위젯으로 띄운 헤드리스 Chrome을 CDP `Input.dispatchMouseEvent`로 실제 클릭했다(임시 스크립트, 저장소에는 넣지 않음). 초기 선택, 클릭 → index·callback·다시 그리기, 비활성 클릭 무시, 위젯 변경 → radio 이동, 편집 중 클릭(편집 유지), 내용 비우기 후 번호 재계산을 확인했다.

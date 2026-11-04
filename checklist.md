@@ -283,3 +283,12 @@ HF Space `hf-applications/background-removal`(app.py)처럼 배경을 지운 투
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 위젯이 보이고 저장 파일에 헤더가 없는지 확인
+
+## Plan 18 — Text List 항목 radio로 index 선택
+항목 입력창 앞에 radio 버튼을 두고, 고르면 index 위젯이 그 항목 번호로 바뀌게 한다. Python은 그대로이고 UI(`web/text_list.js`)만 바꾼다.
+- [x] 행마다 번호와 입력창 사이에 radio 추가, 고르면 index 위젯 값 + callback + 캔버스 다시 그리기
+- [x] index 위젯 callback을 감싸 화살표 등으로 바꿔도 radio가 따라가게 함, 빈 항목 radio는 비활성
+- [x] 헤드리스 Chrome(CDP 실제 클릭)으로 선택·동기화·편집 중 클릭·빈 항목 확인 + 스크린샷 정렬 확인
+- [x] README 반영, Python 테스트
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 radio 클릭 시 index 위젯 숫자가 바로 바뀌는지 확인

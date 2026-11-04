@@ -54,13 +54,36 @@ function createTextListWidget(node, inputName) {
     if (indexWidget.value > max) indexWidget.value = max;
   };
 
-  // Python이 빈 항목을 건너뛰므로 번호도 비어 있지 않은 항목만 센다
+  // index 위젯 값과 번호가 같은 항목의 radio를 선택 상태로 둔다
+  const syncRadios = () => {
+    const index = String(node.widgets?.find((w) => w.name === "index")?.value);
+    list.querySelectorAll("input[data-radio]").forEach((el) => {
+      el.checked = !el.disabled && el.value === index;
+    });
+  };
+
+  // radio로 고른 항목 번호를 index 위젯에 넣는다
+  const selectIndex = (value) => {
+    const indexWidget = node.widgets?.find((w) => w.name === "index");
+    if (!indexWidget) return;
+    indexWidget.value = value;
+    indexWidget.callback?.(value);
+    node.setDirtyCanvas(true, false);
+    syncRadios();
+  };
+
+  // Python이 빈 항목을 건너뛰므로 번호도 비어 있지 않은 항목만 센다. 번호가 없는 빈 항목은 radio로 고를 수 없다
   const refreshLabels = () => {
     let n = 0;
-    list.querySelectorAll("span[data-label]").forEach((el, i) => {
-      el.textContent = items[i].text.trim() ? String(n++) : "-";
+    [...list.children].forEach((row, i) => {
+      const number = items[i].text.trim() ? String(n++) : "";
+      row.querySelector("span[data-label]").textContent = number || "-";
+      const radio = row.querySelector("input[data-radio]");
+      radio.value = number;
+      radio.disabled = !number;
     });
     refreshIndexRange();
+    syncRadios();
   };
 
   // 제목 label을 눌렀으면 제목 입력창에, 내용을 눌렀으면 내용 입력창에 포커스를 둔다
@@ -173,6 +196,15 @@ function createTextListWidget(node, inputName) {
       label.style.cssText = `min-width:24px;text-align:right;opacity:0.7;font-size:12px;line-height:${TITLE_HEIGHT}px;`;
       label.dataset.label = "";
 
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.title = "index로 선택";
+      radio.dataset.radio = "";
+      radio.style.cssText = `margin:0;height:${TITLE_HEIGHT}px;flex-shrink:0;cursor:pointer;`;
+      // 다른 항목을 편집 중일 때 입력창의 blur로 다시 그려져 클릭이 사라지지 않게 포커스 이동을 막는다
+      radio.addEventListener("mousedown", (e) => e.preventDefault());
+      radio.addEventListener("change", () => selectIndex(Number(radio.value)));
+
       const remove = createButton("✕", "항목 삭제", () => {
         items.splice(i, 1);
         if (items.length === 0) items.push(toItem(""));
@@ -181,7 +213,7 @@ function createTextListWidget(node, inputName) {
       });
       remove.style.cssText = "width:24px;height:24px;flex-shrink:0;cursor:pointer;";
 
-      row.append(label, createBody(item, i), remove);
+      row.append(label, radio, createBody(item, i), remove);
       list.append(row);
     });
     refreshLabels();
@@ -230,6 +262,7 @@ function createTextListWidget(node, inputName) {
   });
 
   widget.refreshIndexRange = refreshIndexRange;
+  widget.syncRadios = syncRadios;
   widget.render = render;
   render();
   return { widget };
@@ -244,10 +277,21 @@ app.registerExtension({
   },
   // TEXT_LIST 위젯이 만들어질 때는 index 위젯이 아직 없어서 노드 생성 후 한 번 더 맞춘다
   // show_title 위젯도 같은 이유로 여기서 연결하고, 워크플로를 불러와 값이 바뀐 뒤에도 다시 그린다
+  // index 위젯을 화살표 등으로 바꾸면 radio 선택도 따라가게 한다
   nodeCreated(node) {
     const textList = node.widgets?.find((w) => w.type === "TEXT_LIST");
     if (!textList) return;
     textList.refreshIndexRange();
+
+    const index = node.widgets.find((w) => w.name === "index");
+    if (index) {
+      const callback = index.callback;
+      index.callback = function (...args) {
+        const result = callback?.apply(this, args);
+        textList.syncRadios();
+        return result;
+      };
+    }
 
     const showTitle = node.widgets.find((w) => w.name === "show_title");
     if (showTitle) {
