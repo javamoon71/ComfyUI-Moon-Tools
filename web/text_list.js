@@ -29,6 +29,8 @@ function createTextListWidget(node, inputName) {
   let items = [toItem("")];
   let editing = -1;
   let viewLines = MIN_VIEW_LINES;
+  // 편집으로 바뀌기 전 보기 모드 내용 칸의 높이. 편집 입력창이 이보다 작아지지 않게 한다
+  let editMinHeight = 0;
 
   // 노드 높이는 사용자가 정한 대로 두고, 넘치는 항목은 list 안에서 스크롤한다. 추가 버튼은 list 아래에 고정한다
   const container = document.createElement("div");
@@ -63,6 +65,9 @@ function createTextListWidget(node, inputName) {
 
   // 제목 label을 눌렀으면 제목 입력창에, 내용을 눌렀으면 내용 입력창에 포커스를 둔다
   const startEdit = (i, field = "text") => {
+    // rows는 줄바꿈 수로 정해 자동 줄바꿈된 긴 줄을 세지 못하므로, 보기 모드 높이를 재 두고 그만큼은 유지한다
+    // 새 항목은 아직 그려지지 않아 0이다
+    editMinHeight = list.children[i]?.querySelector("div[data-view]")?.offsetHeight ?? 0;
     editing = i;
     render();
     list.querySelector(field === "title" ? "input" : "textarea")?.focus();
@@ -129,7 +134,8 @@ function createTextListWidget(node, inputName) {
     textarea.value = item.text;
     textarea.rows = editLineCount(i);
     textarea.placeholder = "내용";
-    textarea.style.cssText = boxStyle + "flex-shrink:0;resize:none;outline:1px solid var(--input-text);";
+    textarea.style.cssText =
+      boxStyle + `flex-shrink:0;resize:none;outline:1px solid var(--input-text);min-height:${editMinHeight}px;`;
     textarea.addEventListener("input", () => {
       items[i].text = textarea.value;
       textarea.rows = editLineCount(i);

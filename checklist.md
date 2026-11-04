@@ -267,3 +267,10 @@ HF Space `hf-applications/background-removal`(app.py)처럼 배경을 지운 투
 - [x] README, context-notes 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 기본 로더와 연결해 실행 확인
+
+## Plan 16 — Text List 편집 입력창이 보기 모드보다 작아지지 않게
+긴 문단(자동 줄바꿈)을 클릭해 편집하면 입력창이 줄바꿈 수만큼(예: 3줄)으로 줄어들었다. 보기 모드 내용 칸의 높이를 유지한다.
+- [x] 편집 시작 때 보기 모드 내용 칸 높이를 재서 입력창 `min-height`로 둔다 (`web/text_list.js`)
+- [x] 헤드리스 Chrome으로 수정 전(82px → 64px)·후(82px 유지) 확인, JS 문법 검사, Python 테스트
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 긴 항목을 클릭해 높이가 유지되는지 확인

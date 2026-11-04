@@ -308,3 +308,10 @@
 - **이름·카테고리**: 키 `MoonRemoveBackground`. 기본 노드 키 `RemoveBackground`와 겹치지 않게 `Moon` 접두어를 붙였다(Moon Save Image와 같은 이유). 카테고리는 기본 노드와 같은 `image/background removal`이다.
 - **한 노드 = 한 파일**: `nodes/remove_background.py`, `tests/test_remove_background.py`. 추가 패키지와 `requirements.txt`는 필요 없다.
 - **확인 범위**: 가짜 모델로 단위 테스트만 했다. 이 PC에는 ComfyUI가 없어 실제 모델 실행은 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-04 Text List 편집 입력창 높이 유지
+- **증상**: 긴 문단 항목을 클릭해 편집하면 입력창이 보기 모드보다 작아졌다(사용자 스크린샷에서 3줄).
+- **원인**: 입력창 `rows`를 줄바꿈 수 + 1(최대 10)로 정한다. 줄바꿈 없이 자동 줄바꿈된 긴 줄은 한 줄로 세므로, 보기 모드가 `-webkit-line-clamp`로 여러 줄을 보여 주던 항목도 2~3줄 입력창이 된다.
+- **수정**: `startEdit`에서 그 항목의 보기 모드 내용 칸 `offsetHeight`를 재서 입력창 `min-height`로 준다. 둘 다 `box-sizing:border-box`에 같은 padding·border라 높이가 그대로 이어지고, 제목 칸 높이도 같아 행 높이가 바뀌지 않는다. ComfyUI가 DOM 위젯에 거는 CSS transform 영향을 받지 않도록 `getBoundingClientRect` 대신 `offsetHeight`를 쓴다.
+- **그대로 둔 것**: 줄바꿈이 보기 모드 줄 수보다 많은 항목은 예전처럼 `rows`가 커져 입력창이 늘어난다(최대 10줄). 요청은 줄어드는 문제라 늘어나는 동작은 바꾸지 않았다. 새 항목은 보기 모드 칸이 없어 예전처럼 2줄로 시작한다.
+- **확인**: 가짜 `app.js`로 위젯을 띄운 헤드리스 Chrome에서 긴 줄 + 줄바꿈 1개 항목이 수정 전 82px → 64px(rows=3), 수정 후 82px 유지. `--dump-dom`은 동적 import가 끝나기 전에 DOM을 내보낼 때가 있어 빈 결과가 나오면 다시 실행했다.
