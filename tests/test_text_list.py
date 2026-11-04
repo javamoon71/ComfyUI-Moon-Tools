@@ -73,6 +73,30 @@ class TestTextList(unittest.TestCase):
         self.assertEqual(out[2], ["A", "", ""])
         self.assertEqual(self.node.select("", 0)[2], [])
 
+    def test_text_list_input_splits_by_separator(self):
+        # 사용자 예시: 3개 항목을 담은 목록과 같이 처리한다
+        joined = "1##\n2##\n343434 ##"
+        out = self.node.select("", 0, text_list=joined)
+        self.assertEqual(out, ("", "1", ["", "", ""], ["1", "2", "343434"]))
+        self.assertEqual(self.pick("", 2, text_list=joined), ("343434", ""))
+        self.assertEqual(self.pick("", 4, text_list=joined), ("2", ""))
+
+    def test_text_list_input_replaces_widget_items(self):
+        widget = json.dumps([{"title": "A", "text": "widget"}])
+        self.assertEqual(self.node.select(widget, 0, text_list="x##y")[3], ["x", "y"])
+        self.assertEqual(self.pick(widget, 0, text_list="x##y"), ("x", ""))
+        # 연결되어 있으면 비어 있어도 위젯 목록으로 돌아가지 않는다
+        self.assertEqual(self.node.select(widget, 0, text_list=" ## \n"), ("", "", [], []))
+        # 연결되지 않으면(None) 위젯 목록을 쓴다
+        self.assertEqual(self.pick(widget, 0, text_list=None), ("widget", "A"))
+
+    def test_text_list_input_keeps_newlines_inside_item(self):
+        self.assertEqual(self.node.select("", 0, text_list="a\nb##c")[3], ["a\nb", "c"])
+
+    def test_text_list_input_is_optional_socket(self):
+        spec = TextList.INPUT_TYPES()["optional"]["text_list"]
+        self.assertEqual(spec, ("STRING", {"forceInput": True, "display_name": "text list ##"}))
+
     def test_search_aliases(self):
         self.assertEqual(TextList.SEARCH_ALIASES, ["moon", "text", "textlist", "text list"])
 

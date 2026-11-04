@@ -343,3 +343,12 @@ Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment
 - [x] README 반영(예전 increment 팁을 생성 후 제어 설명으로 바꿈)
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 Image List 제어 위젯이 보이고, 예전 워크플로의 random On 노드가 randomize로 열리는지 확인
+
+## Plan 24 — Text List에 `text list ##` 문자열 입력 추가
+문자열을 `##`로 나눠 항목 목록으로 쓴다. `"1##\n2##\n343434 ##"`은 항목 3개(`1`, `2`, `343434`)와 같다. 처음 요청은 image_list.py였지만 사용자가 Text List라고 바로잡았다.
+- [x] 선택 입력 `text_list`(STRING, forceInput, 화면 표시 `text list ##`) 추가, 연결되면 위젯 목록 대신 `##`로 나눈 항목 사용 (`nodes/text_list.py`)
+- [x] 연결 중에는 index 범위를 위젯 항목 수에 묶지 않고, 생성 후 제어도 순환하지 않게 함 (`web/text_list.js`)
+- [x] 단위 테스트 추가 + 헤드리스 Chrome으로 실제 `text_list.js` 확인(수정 전 JS는 8개 실패)
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 소켓이 `text list ##`로 보이고, 연결한 문자열의 항목이 index로 선택되는지 확인

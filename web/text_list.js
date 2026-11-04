@@ -9,6 +9,8 @@ const GAP = 4;
 const MAX_EDIT_LINES = 10;
 const MIN_VIEW_LINES = 2;
 const TITLE_HEIGHT = 24;
+// Python index 위젯의 max와 같다
+const INDEX_MAX = 0xffffffff;
 
 // 항목은 { title, text }. 제목이 생기기 전 워크플로는 문자열 항목이다
 function toItem(value) {
@@ -49,11 +51,15 @@ function createTextListWidget(node, inputName) {
   // Python이 빈 항목을 건너뛰므로 index로 고를 수 있는 항목은 내용이 있는 것뿐이다
   const itemCount = () => items.filter((v) => v.text.trim()).length;
 
+  // text_list(## 문자열) 입력이 연결되면 항목이 실행할 때 정해져 여기서는 개수를 알 수 없다
+  const textListLinked = () => node.inputs?.find((input) => input.name === "text_list")?.link != null;
+
   // index 위젯의 최대값을 항목 수에 맞춰 화살표로 범위를 넘지 않게 한다
+  // text_list가 연결되어 있으면 범위를 묶지 않는다. Python이 항목 수로 나눈 나머지를 쓴다
   const refreshIndexRange = () => {
     const indexWidget = node.widgets?.find((w) => w.name === "index");
     if (!indexWidget) return;
-    const max = Math.max(0, itemCount() - 1);
+    const max = textListLinked() ? INDEX_MAX : Math.max(0, itemCount() - 1);
     indexWidget.options.max = max;
     if (indexWidget.value > max) indexWidget.value = max;
   };
@@ -265,7 +271,8 @@ function createTextListWidget(node, inputName) {
     getMinHeight: () => TITLE_HEIGHT + 2 + MIN_VIEW_LINES * LINE_HEIGHT + ROW_PADDING + GAP + ADD_BUTTON_HEIGHT + 8,
   });
 
-  widget.itemCount = itemCount;
+  // 생성 후 제어는 개수가 0이면 순환하지 않고 기본 동작을 한다
+  widget.itemCount = () => (textListLinked() ? 0 : itemCount());
   widget.refreshIndexRange = refreshIndexRange;
   widget.syncRadios = syncRadios;
   widget.render = render;
@@ -315,6 +322,13 @@ app.registerExtension({
       const result = onConfigure?.apply(this, args);
       if (control) migrateRandom(node, control, args[0]);
       textList.render();
+      return result;
+    };
+    // text_list 입력을 연결하거나 끊으면 index 범위를 다시 맞춘다
+    const onConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function (...args) {
+      const result = onConnectionsChange?.apply(this, args);
+      textList.refreshIndexRange();
       return result;
     };
     textList.render();

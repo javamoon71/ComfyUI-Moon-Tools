@@ -394,3 +394,18 @@
 - **이미지 개수**: `items.length`. JS `parseValue`가 빈 이름을 이미 빼고, Python `parse_items`도 같은 기준이라 index 번호가 맞는다.
 - **README 팁**: "2026-10-27 Text List 통합" 기록의 "Image List README의 `index` increment 팁은 동작하지 않을 수 있다"는 이번에 `control_after_generate`가 붙어 실제 기능이 됐다. 팁은 생성 후 제어 설명과 random 이전 안내로 바꿨다.
 - **확인**: 가짜 `app.js`/`api.js`와 프론트엔드 main 제어 로직을 옮긴 가짜 위젯으로 실제 `text_list.js`·`image_list.js`(+ `index_control.js`)를 Node 22에서 실행했다(임시 스크립트, 저장소에는 넣지 않음). 두 노드 모두 increment/decrement 순환, randomize 3만 회 분포, 1개·0개, fixed, index 링크, 개수 변경, before 모드, random 이전 7가지가 통과했다. 수정 전 Image List JS는 increment가 1, 2, 2, 2…로 멈춰 실패한다.
+
+## 2026-11-04 Text List `text list ##` 입력
+- **요청**: `text list ##` 입력으로 문자열을 받아 `##`로 나눠 배열처럼 처리. `"1##\n2##\n343434 ##"`은 항목 3개를 받은 것과 같다. 처음에는 "image_list.py"라고 했지만 질문에 "Text List에 적용하는 거야. Image List는 아니야"라고 답했다.
+- **입력 형태(사용자 선택)**: 연결 전용 소켓. `"optional"`에 `("STRING", {"forceInput": True, "display_name": "text list ##"})`. 키는 Python 인자로 쓰기 쉽게 `text_list`, 화면 이름은 `display_name`으로 사용자가 말한 그대로 보인다. 출력 `text_list`와 이름이 같지만 입력·출력은 따로 찾으므로(출력은 번호) 겹치지 않는다.
+  - `display_name` 확인(ComfyUI_frontend main, 2026-11-04): `transformInputSpecV1ToV2`가 V1 옵션을 그대로 펼치고, `addInputSocket`이 `resolveNodeDefSlotText(..., inputSpec.display_name, inputName)`으로 `localized_name`을 정한다. 번역이 없으면 `display_name`이 보인다.
+  - 예전 워크플로: 프론트엔드 `configure` 재정의가 노드 정의의 입력 순서로 저장된 입력을 다시 맞추므로 새 소켓이 끝에 생기고 기존 링크의 슬롯 번호는 바뀌지 않는다. widgets_values에도 영향이 없다.
+- **위젯 목록과의 관계(내가 정함, 사용자 확인 전)**: 연결되면 위젯 목록 대신 쓴다. ComfyUI에서 입력을 연결하면 위젯 값 대신 쓰는 관례와 같고, "3개의 리스트로 받은 것과 같은 처리"라는 요청과도 맞다. 연결되어 있으면 빈 문자열이어도 위젯 목록으로 돌아가지 않는다(Python은 연결 안 된 선택 입력만 None으로 받으므로 이것으로 구분).
+- **나누기**: `split("##")` 후 각 조각 `strip()`, 빈 조각 제외. 위젯 항목과 같은 기준이다. 조각 안 줄바꿈은 유지. 제목은 빈 문자열.
+- **프론트엔드**: 그대로 두면 `refreshIndexRange`가 index max를 위젯 항목 수 − 1로 묶어서, 위젯 목록이 비어 있으면 index가 0에서 움직이지 않는다(increment도 max에서 멈춤). 연결 중에는
+  - max를 Python과 같은 `0xFFFFFFFF`로 둔다. Python이 `index % 항목 수`를 쓴다.
+  - `wrapIndexControl`에 넘기는 개수를 0으로 해 기본 제어를 쓴다. increment는 계속 늘고 Python이 나머지로 순환시킨다. randomize는 0 ~ max 중 하나라 나머지도 고르게 나온다. decrement는 min 0에서 멈춘다(README에 적음). 항목 수를 정확히 맞추려면 Python이 실행 결과로 개수를 보내야 하는데(Unpack의 ui count), 그러면 `select` 반환 형식과 테스트가 모두 바뀌어 하지 않았다.
+  - `onConnectionsChange`에서 범위를 다시 맞춘다. 끊으면 위젯 항목 수로 돌아가며 index가 잘린다.
+  - 연결 여부는 `input.link`로 본다(`any_index_switch.js`와 같은 방식). 최신 프론트엔드는 deprecated 경고를 메시지당 한 번만 내고 값은 그대로 준다. 워크플로를 불러올 때 `LGraph.configure`가 링크를 노드보다 먼저 넣고, `LGraphNode.configure`는 입력을 위젯 값 복원보다 먼저 넣으므로 불러오는 중에도 연결 상태가 맞다.
+  - 위젯 목록과 radio는 연결 중에도 그대로 보인다. 출력에 쓰이지 않는다는 표시는 요청 범위 밖이라 하지 않았다.
+- **확인**: 단위 테스트 4개 추가(사용자 예시, 위젯 목록 대체, 빈 문자열, 연결 안 됨, 조각 안 줄바꿈, 입력 선언). 헤드리스 Chrome에서 가짜 `app.js`와 생성 후 제어 흉내로 실제 `web/text_list.js`를 돌렸다(임시 스크립트, 저장소에는 넣지 않음). 연결 안 됨 순환, 연결 시 범위 해제·increment·randomize, 연결 → 끊기, 불러오기 순서 등 11개가 통과하고, 수정 전 JS는 8개가 실패한다. ComfyUI 화면은 ComfyUI PC에서 확인해야 한다.

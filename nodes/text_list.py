@@ -1,6 +1,8 @@
 # 여러 줄 문자열을 리스트로 관리하고 index에 해당하는 항목을 출력하는 노드
 import json
 
+SEPARATOR = "##"
+
 
 def item_pair(item):
     # 제목이 붙은 항목은 {"title", "text"} 객체이고, 예전 문자열 항목은 제목이 없다
@@ -22,6 +24,11 @@ def parse_items(text):
     return [p for p in pairs if p[1]]
 
 
+def split_items(text):
+    # text_list 입력 문자열을 ##로 나눈다. 제목은 없고, 빈 항목은 위젯 목록과 같이 건너뛴다
+    return [("", part.strip()) for part in text.split(SEPARATOR) if part.strip()]
+
+
 class TextList:
     @classmethod
     def INPUT_TYPES(cls):
@@ -33,7 +40,11 @@ class TextList:
                 "index": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": "fixed"}),
                 # 목록 UI에서 제목을 보일지만 정한다. 출력에는 영향이 없다
                 "show_title": ("BOOLEAN", {"default": True, "label_on": "On", "label_off": "Off"}),
-            }
+            },
+            "optional": {
+                # 연결하면 위젯 목록 대신 이 문자열을 ##로 나눈 항목을 쓴다. 화면에는 display_name으로 보인다
+                "text_list": ("STRING", {"forceInput": True, "display_name": "text list ##"}),
+            },
         }
 
     # 제목을 내용보다 앞에 둔다(사용자 요청). 예전 워크플로의 출력 링크는 다시 연결해야 한다
@@ -46,8 +57,9 @@ class TextList:
     # 노드 검색은 name/display_name 외에 이 별칭도 본다. "moon"은 이름에 없어서 별칭이 있어야 찾힌다
     SEARCH_ALIASES = ["moon", "text", "textlist", "text list"]
 
-    def select(self, text, index, show_title=True):
-        items = parse_items(text)
+    def select(self, text, index, show_title=True, text_list=None):
+        # 연결되지 않은 선택 입력은 None으로 들어온다. 연결되어 있으면 빈 문자열이어도 위젯 목록을 쓰지 않는다
+        items = parse_items(text) if text_list is None else split_items(text_list)
         if not items:
             return ("", "", [], [])
         # show_title은 UI 표시만 정하므로 숨겨도 제목은 출력한다
