@@ -337,3 +337,19 @@
 - **내용을 지워 번호가 당겨질 때**: index 값은 그대로이고 같은 번호가 된 항목의 radio가 선택된다. 실행 결과도 그 항목이라 표시와 출력이 맞다.
 - **random On / index 링크**: radio는 그대로 index 위젯만 바꾼다. 이때 출력에는 쓰이지 않는다(README에 적음).
 - **확인**: 가짜 `app.js`와 index 위젯으로 띄운 헤드리스 Chrome을 CDP `Input.dispatchMouseEvent`로 실제 클릭했다(임시 스크립트, 저장소에는 넣지 않음). 초기 선택, 클릭 → index·callback·다시 그리기, 비활성 클릭 무시, 위젯 변경 → radio 이동, 편집 중 클릭(편집 유지), 내용 비우기 후 번호 재계산을 확인했다.
+
+## 2026-11-04 Moon Text List Unpack
+- **요청**: Any Index Switch의 `value`가 텍스트 배열이면, 배열 수만큼 출력으로 나눠 하나씩 연결할 수 있는 노드.
+- **출력 슬롯 방식(사용자 선택)**: 출력 슬롯은 실행 전에 있어야 연결할 수 있는데 배열 길이는 실행해야 안다. 후보는 실행 후 개수에 맞춤 / 연결할 때마다 하나씩 추가(Any Index Switch 입력 방식) / count 위젯이었고, 첫 번째를 골랐다.
+  - Python은 STRING 출력 32개(`MAX_OUTPUTS`)를 선언하고 항목 뒤는 빈 문자열로 채운다. `{"ui": {"count": [n]}}`로 항목 수를 보낸다.
+  - JS는 `onNodeCreated`에서 `text0`만 남기고, `onExecuted`에서 `max(1, count, 마지막으로 연결된 출력 + 1)`개로 맞춘다. 끝에서만 늘리고 줄여 슬롯 위치와 Python 결과 순서가 같다. 높이만 다시 계산한다(Any Index Switch와 같음).
+  - 백엔드는 링크의 슬롯 번호만 보므로 화면에 보이는 출력이 32개보다 적어도 된다.
+  - 워크플로를 불러오면 LiteGraph `configure`가 `onNodeCreated` 뒤에 저장된 출력 배열을 다시 채워 개수가 유지된다.
+  - 캐시로 실행을 건너뛰어도 ComfyUI가 저장된 ui를 `executed`로 다시 보낸다(`emit_cached_output`, 2026-11-04 master 확인).
+  - 출력에 아무것도 연결하지 않으면 ComfyUI가 노드를 실행하지 않는다. `OUTPUT_NODE`로 만들면 입력이 없을 때 큐 전체가 검증 오류로 막혀서 쓰지 않았다. README에 "처음에는 text0을 연결하고 실행"이라고 적었다.
+- **입력 타입**: `("STRING", {"forceInput": True})`. 프론트엔드에서 IMAGE 같은 다른 타입 출력은 연결되지 않고, `*`인 Any Index Switch `value`는 연결된다. 백엔드 `validate_node_input`도 `AnyType.__ne__`와 `*` 처리로 통과한다(2026-11-04 master 확인). `*`로 이미지가 들어올 수 있어 실행 때도 검사한다.
+- **텍스트가 아닌 값(사용자 선택)**: 하나라도 str이 아니면 `ValueError("텍스트 배열이 아닙니다 …(타입 이름)")`.
+- **INPUT_IS_LIST**: 리스트가 들어와도 한 번만 실행한다. 리스트가 아닌 STRING은 항목 1개짜리 리스트라 `text0`으로 나간다.
+- **32개 초과**: 앞의 32개만 내고 `logging.warning`. 사용할 항목만 연결하는 경우가 많아 실행을 멈추지 않았다.
+- **이름**: 키 `MoonTextListUnpack`. `TextListUnpack`은 다른 팩과 겹칠 수 있어 `Moon` 접두어를 붙였다. 카테고리는 Text List와 같은 `utils/text`. 출력 이름은 Text List 번호처럼 0부터 센다.
+- **확인 범위**: 단위 테스트 6개, 가짜 LiteGraph 노드(Node 22)로 슬롯 조정. 실제 ComfyUI 화면은 ComfyUI PC에서 확인해야 한다.

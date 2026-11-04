@@ -292,3 +292,16 @@ HF Space `hf-applications/background-removal`(app.py)처럼 배경을 지운 투
 - [x] README 반영, Python 테스트
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 radio 클릭 시 index 위젯 숫자가 바로 바뀌는지 확인
+
+## Plan 19 — Moon Text List Unpack 노드
+Any Index Switch의 `value`로 나온 텍스트 배열을 받아, 항목 수만큼 `text0`, `text1`, … 출력으로 나눈다.
+- 출력 슬롯(사용자 선택): 처음엔 `text0`만, 실행하면 항목 수에 맞춤. 줄어도 연결된 출력은 유지(빈 문자열). 최대 32개
+- 텍스트가 아닌 값(사용자 선택): 오류로 멈춤
+- [x] 노드 구현 (`nodes/text_list_unpack.py`, `INPUT_IS_LIST`, STRING × 32, `ui.count`)
+- [x] 출력 슬롯 조정 프론트엔드 (`web/text_list_unpack.js`, onNodeCreated / onExecuted)
+- [x] 등록 (`__init__.py`, 키 `MoonTextListUnpack`)
+- [x] 단위 테스트 (`tests/test_text_list_unpack.py`) + 가짜 LiteGraph 노드로 슬롯 조정 확인
+- [x] ComfyUI 소스에서 `*` → STRING 검증 통과, 캐시 실행 때도 ui 메시지가 가는지 확인
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 Any Index Switch → Unpack 연결, 실행 후 출력 수 변화, 워크플로 저장·불러오기 확인

@@ -4,6 +4,7 @@ from .nodes.image_list import ImageList
 from .nodes.remove_background import MoonRemoveBackground
 from .nodes.save_image import MoonSaveImage
 from .nodes.text_list import TextList
+from .nodes.text_list_unpack import TextListUnpack
 
 NODE_CLASS_MAPPINGS = {
     "ImageList": ImageList,
@@ -11,6 +12,7 @@ NODE_CLASS_MAPPINGS = {
     "AnyIndexSwitch": AnyIndexSwitch,
     "MoonSaveImage": MoonSaveImage,
     "MoonRemoveBackground": MoonRemoveBackground,
+    "MoonTextListUnpack": TextListUnpack,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageList": "Moon Image List (ImageList)",
@@ -18,6 +20,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AnyIndexSwitch": "Moon Any Index Switch (AnyIndexSwitch)",
     "MoonSaveImage": "Moon Save Image (MoonSaveImage)",
     "MoonRemoveBackground": "Moon Remove Background (MoonRemoveBackground)",
+    "MoonTextListUnpack": "Moon Text List Unpack (MoonTextListUnpack)",
 }
 
 WEB_DIRECTORY = "./web"
