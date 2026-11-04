@@ -42,9 +42,10 @@ class TestMoonSaveImage(unittest.TestCase):
         )
         self.node = MoonSaveImage()
 
-    def save(self, images=None, prefix="test", path="", file_format="png", metadata=True):
+    def save(self, images=None, prefix="test", path="", file_format="png", metadata=True, strip=False):
         images = batch() if images is None else images
-        return self.node.save(images, prefix, path, file_format, 90, metadata, prompt=PROMPT, extra_pnginfo=EXTRA)
+        return self.node.save(images, prefix, path, file_format, 90, metadata, strip,
+                              prompt=PROMPT, extra_pnginfo=EXTRA)
 
     def test_png_batch_and_passthrough(self):
         images = batch(2)
@@ -76,6 +77,35 @@ class TestMoonSaveImage(unittest.TestCase):
             self.assertNotIn("prompt", img.text)
         with Image.open(os.path.join(self.output, "test_00002_.webp")) as img:
             self.assertEqual(len(img.getexif()), 0)
+
+    def test_strip_header_ignores_save_metadata(self):
+        self.save(strip=True)
+        with Image.open(os.path.join(self.output, "test_00001_.png")) as img:
+            self.assertEqual(img.text, {})
+
+    def test_strip_header_jpg(self):
+        images = batch()
+        self.save(images, file_format="jpg")
+        self.save(images, file_format="jpg", strip=True)
+        with Image.open(os.path.join(self.output, "test_00001_.jpg")) as kept, \
+                Image.open(os.path.join(self.output, "test_00002_.jpg")) as stripped:
+            self.assertIn("jfif", kept.info)
+            self.assertNotIn("jfif", stripped.info)
+            # 헤더만 빠지고 이미지 데이터는 같다
+            self.assertEqual(stripped.tobytes(), kept.tobytes())
+
+    def test_strip_header_webp(self):
+        self.save(file_format="webp", strip=True)
+        self.save(batch(channels=4), file_format="webp", strip=True)
+        path = os.path.join(self.output, "test_00001_.webp")
+        with open(path, "rb") as file:
+            self.assertEqual(file.read(16)[12:], b"VP8 ")
+        with Image.open(path) as img:
+            self.assertNotIn("exif", img.info)
+        # 알파는 확장 헤더가 있어야 담기므로 투명도는 유지된다
+        with Image.open(os.path.join(self.output, "test_00002_.webp")) as img:
+            self.assertNotIn("exif", img.info)
+            self.assertEqual(img.mode, "RGBA")
 
     def test_webp_metadata(self):
         self.save(file_format="webp")

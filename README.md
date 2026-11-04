@@ -153,6 +153,7 @@ git pull
 - **저장 폴더**: `output_path`를 비워 두면 ComfyUI `output` 폴더에 저장합니다. 상대 경로는 `output` 아래에, 절대 경로는 그 위치에 저장하고, 없는 폴더는 만듭니다.
 - **파일 이름 토큰**: `filename_prefix`와 `output_path`에 `%date:yyyy-MM-dd%`, `%width%`, `%height%`를 쓸 수 있습니다.
 - **메타데이터 On/Off**: `save_metadata`를 켜면 프롬프트와 워크플로를 파일에 넣습니다. 저장한 PNG나 WebP를 ComfyUI에 끌어다 놓으면 워크플로가 다시 열립니다.
+- **헤더 삭제**: `strip_header`를 켜면 `save_metadata`와 상관없이 메타데이터와 형식 헤더(JPG의 JFIF, WebP의 EXIF·확장 헤더)를 모두 빼고 이미지 데이터만 저장합니다.
 - **미리보기**: 저장한 이미지를 노드 안에서 보여 줍니다. `output` 폴더 밖에 저장해도 보입니다.
 - **이미지 통과 출력**: `images` 출력은 입력 이미지를 그대로 내보내므로 워크플로 중간에 둘 수 있습니다.
 - **덮어쓰기 없음**: 기본 노드처럼 번호를 붙이고(`ComfyUI_00001_.png`), 폴더에 있는 가장 큰 번호 다음부터 이어 갑니다.
@@ -177,6 +178,7 @@ git pull
 | `file_format` | `png` / `jpg` / `webp` | 파일 형식 |
 | `quality` | INT | JPG, WebP 품질 1~100 (기본 95). PNG에는 적용되지 않음 |
 | `save_metadata` | BOOLEAN | On이면 프롬프트와 워크플로를 파일에 넣음 |
+| `strip_header` | BOOLEAN | On이면 메타데이터와 형식 헤더를 모두 빼고 이미지 데이터만 저장 (기본 Off). `save_metadata`보다 우선 |
 
 ### 출력
 
@@ -207,6 +209,7 @@ git pull
 - JPG는 투명도를 지원하지 않으므로 알파 채널이 있는 이미지는 RGB로 저장합니다.
 - WebP는 quality가 100이어도 손실 압축으로 저장합니다.
 - ComfyUI 실행 옵션 `--disable-metadata`는 이 노드에 적용되지 않습니다. 대신 `save_metadata`를 쓰세요.
+- `strip_header`를 켜면 PNG는 필수 청크(IHDR, IDAT, IEND)만 남기고, JPG는 JFIF 같은 APPn·주석 세그먼트를 빼며, WebP는 EXIF와 확장 헤더(VP8X)가 없는 단순 형식으로 저장합니다. 알파 채널이 있는 WebP는 투명도를 담으려면 확장 헤더가 필요해서 그대로 둡니다. 이렇게 저장한 파일은 ComfyUI에 끌어다 놓아도 워크플로가 열리지 않습니다.
 - `output` 밖에 저장한 이미지는 미리보기용 사본이 ComfyUI `temp` 폴더에 저장됩니다. `temp` 폴더는 ComfyUI를 시작할 때 비워집니다.
 
 ## Moon Remove Background
@@ -255,7 +258,7 @@ ComfyUI 기본 **Remove Background**(배경 제거) 노드 대신 쓰는 노드�
 - **프론트엔드 UI가 갱신되지 않음:** ComfyUI를 재시작하고 브라우저를 새로고침하세요. 브라우저 캐시가 남아 있으면 강력 새로고침을 시도하세요.
 - **Moon Text List나 Moon Save Image가 이상하게 동작함:** `custom_nodes`에 예전 `ComfyUI-Moon-Text-List`나 `ComfyUI-Moon-SaveImage` 폴더가 남아 있는지 확인하세요. [예전 저장소에서 옮겨 오기](#예전-저장소에서-옮겨-오기)를 참고하세요.
 - **Moon Remove Background에 모델을 연결할 수 없음:** ComfyUI를 2026년 5월 이후 버전으로 업데이트하고, `models/background_removal/`에 모델 파일이 있는지 확인하세요.
-- **저장한 이미지에서 워크플로가 열리지 않음:** Moon Save Image의 `save_metadata`가 켜져 있는지, 형식이 PNG나 WebP인지 확인하세요.
+- **저장한 이미지에서 워크플로가 열리지 않음:** Moon Save Image의 `save_metadata`가 켜져 있고 `strip_header`가 꺼져 있는지, 형식이 PNG나 WebP인지 확인하세요.
 
 ## 개발 및 테스트
 

@@ -274,3 +274,12 @@ HF Space `hf-applications/background-removal`(app.py)처럼 배경을 지운 투
 - [x] 헤드리스 Chrome으로 수정 전(82px → 64px)·후(82px 유지) 확인, JS 문법 검사, Python 테스트
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 긴 항목을 클릭해 높이가 유지되는지 확인
+
+## Plan 17 — Moon Save Image 헤더 삭제 옵션
+`save_metadata` Off여도 jpg는 JFIF 헤더, webp는 빈 EXIF 청크와 VP8X 헤더가 남는다. 이것까지 지우는 옵션을 UI에 추가한다(사용자 선택: `save_metadata`는 두고 `strip_header`를 맨 뒤에 추가).
+- [x] `strip_header` BOOLEAN 위젯 추가(기본 Off, `save_metadata`보다 우선) (`nodes/save_image.py`)
+- [x] png: 메타데이터 없이 필수 청크만, jpg: APPn·COM 세그먼트 제거, webp: EXIF 없이 단순 형식
+- [x] 단위 테스트(형식별 헤더, jpg 이미지 데이터 동일, webp 알파 유지) + 전체 테스트
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 위젯이 보이고 저장 파일에 헤더가 없는지 확인

@@ -315,3 +315,14 @@
 - **수정**: `startEdit`에서 그 항목의 보기 모드 내용 칸 `offsetHeight`를 재서 입력창 `min-height`로 준다. 둘 다 `box-sizing:border-box`에 같은 padding·border라 높이가 그대로 이어지고, 제목 칸 높이도 같아 행 높이가 바뀌지 않는다. ComfyUI가 DOM 위젯에 거는 CSS transform 영향을 받지 않도록 `getBoundingClientRect` 대신 `offsetHeight`를 쓴다.
 - **그대로 둔 것**: 줄바꿈이 보기 모드 줄 수보다 많은 항목은 예전처럼 `rows`가 커져 입력창이 늘어난다(최대 10줄). 요청은 줄어드는 문제라 늘어나는 동작은 바꾸지 않았다. 새 항목은 보기 모드 칸이 없어 예전처럼 2줄로 시작한다.
 - **확인**: 가짜 `app.js`로 위젯을 띄운 헤드리스 Chrome에서 긴 줄 + 줄바꿈 1개 항목이 수정 전 82px → 64px(rows=3), 수정 후 82px 유지. `--dump-dom`은 동적 import가 끝나기 전에 DOM을 내보낼 때가 있어 빈 결과가 나오면 다시 실행했다.
+
+## 2026-11-04 Moon Save Image 헤더 삭제 옵션
+- **요청**: 이미지 저장 때 헤더 정보와 메타데이터를 지우는 옵션을 UI에 추가.
+- **조사(Pillow 12.1.0)**: `save_metadata` Off일 때 png는 IHDR, IDAT, IEND만 남아 이미 깨끗하다. jpg는 메타데이터와 상관없이 JFIF APP0 헤더가 항상 붙는다. webp는 `exif=Image.Exif()`를 늘 넘겨 빈 EXIF 청크(14바이트)와 확장 헤더(VP8X)가 붙는다.
+- **방식(사용자 선택)**: `save_metadata`는 그대로 두고 `strip_header` On/Off를 맨 뒤에 추가했다. 다른 후보는 prompt/workflow 개별 선택, 하나의 메타데이터 목록이었다. 둘 다 `save_metadata` 자리를 바꿔 저장된 워크플로의 위젯 값(순서 기반)이 어긋나므로 고르지 않았다.
+- **동작**: On이면 `save_metadata`와 상관없이 메타데이터를 넣지 않는다.
+  - png: pnginfo 없이 저장한다(Off와 같음).
+  - jpg: Pillow에 JFIF를 끄는 옵션이 없어 메모리에 저장한 뒤 SOS 앞의 APPn(0xE0~0xEF)과 COM(0xFE) 세그먼트를 뺀다. 항상 RGB로 바꿔 저장하므로 CMYK 색 변환용 Adobe APP14가 필요한 경우는 없다. JFIF가 없는 3채널 JPEG는 디코더가 YCbCr로 읽는다.
+  - webp: exif를 넘기지 않으면 Pillow가 단순 형식(VP8 청크만)으로 저장한다. 알파가 있으면 VP8X+ALPH가 필요해서 남는다.
+- **Off일 때 webp 빈 EXIF는 그대로 둠**: 요청 범위가 새 옵션이라 기존 Off 동작은 바꾸지 않았다.
+- **확인**: 단위 테스트(png 텍스트 없음, jpg JFIF 없음 + 픽셀 데이터 동일, webp 단순 형식 + 알파 유지)와 청크 나열 스크립트(임시, 저장소에는 넣지 않음). ComfyUI 화면은 ComfyUI PC에서 확인해야 한다.

@@ -1,4 +1,5 @@
 # 입력 IMAGE를 png/jpg/webp 파일로 저장하고 미리보기를 보여 주는 노드
+import io
 import json
 import os
 import re
@@ -53,7 +54,20 @@ def to_pil(image):
     return Image.fromarray(np.clip(array, 0, 255).astype(np.uint8))
 
 
-def save_file(img, path, file_format, quality, metadata):
+def strip_jpeg_header(data):
+    # SOS 앞의 APPn(JFIF, EXIF 등)과 COM 세그먼트를 뺀다. 남는 세그먼트는 디코딩에 필요하다
+    out = bytearray(data[:2])
+    i = 2
+    while data[i + 1] != 0xDA:
+        end = i + 2 + int.from_bytes(data[i + 2:i + 4], "big")
+        if not (0xE0 <= data[i + 1] <= 0xEF or data[i + 1] == 0xFE):
+            out += data[i:end]
+        i = end
+    return bytes(out + data[i:])
+
+
+def save_file(img, path, file_format, quality, metadata, strip_header):
+    # strip_header면 metadata는 비어 있다. png는 메타데이터가 없으면 필수 청크만 남는다
     if file_format == "png":
         info = None
         if metadata:
@@ -68,10 +82,22 @@ def save_file(img, path, file_format, quality, metadata):
         for key, value in metadata.items():
             exif[tag] = f"{key}:{json.dumps(value)}"
             tag -= 1
-        img.save(path, quality=quality, exif=exif)
+        if strip_header:
+            # EXIF를 넘기지 않으면 빈 EXIF 청크와 확장 헤더(VP8X)가 붙지 않는다. 알파가 있으면 VP8X는 필요해서 남는다
+            img.save(path, quality=quality)
+        else:
+            img.save(path, quality=quality, exif=exif)
     else:
         # JPEG EXIF는 64KB 제한이 있어 워크플로를 넣지 않는다
-        img.convert("RGB").save(path, quality=quality)
+        img = img.convert("RGB")
+        if strip_header:
+            # Pillow는 JFIF 헤더를 항상 쓰므로 저장한 바이트에서 지운다
+            buffer = io.BytesIO()
+            img.save(buffer, "JPEG", quality=quality)
+            with open(path, "wb") as file:
+                file.write(strip_jpeg_header(buffer.getvalue()))
+        else:
+            img.save(path, quality=quality)
 
 
 def save_preview(img, temp_dir):
@@ -93,6 +119,9 @@ class MoonSaveImage:
                 "file_format": (["png", "jpg", "webp"], {"default": "png"}),
                 "quality": ("INT", {"default": 95, "min": 1, "max": 100}),
                 "save_metadata": ("BOOLEAN", {"default": True, "label_on": "On", "label_off": "Off"}),
+                # On이면 save_metadata와 상관없이 메타데이터와 형식 헤더(JFIF, EXIF, VP8X)를 빼고 이미지 데이터만 남긴다
+                # 맨 뒤에 두어 예전 워크플로의 위젯 값 순서가 그대로 맞는다
+                "strip_header": ("BOOLEAN", {"default": False, "label_on": "On", "label_off": "Off"}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -103,7 +132,7 @@ class MoonSaveImage:
     OUTPUT_NODE = True
     CATEGORY = "image"
 
-    def save(self, images, filename_prefix, output_path, file_format, quality, save_metadata,
+    def save(self, images, filename_prefix, output_path, file_format, quality, save_metadata, strip_header,
              prompt=None, extra_pnginfo=None):
         # ComfyUI 밖(테스트)에서도 import할 수 있도록 여기서 불러온다
         import folder_paths
@@ -120,7 +149,7 @@ class MoonSaveImage:
         os.makedirs(folder, exist_ok=True)
 
         metadata = {}
-        if save_metadata:
+        if save_metadata and not strip_header:
             if prompt is not None:
                 metadata["prompt"] = prompt
             metadata.update(extra_pnginfo or {})
@@ -131,7 +160,7 @@ class MoonSaveImage:
         for image in images:
             img = to_pil(image)
             file = f"{filename}_{counter:05}_.{file_format}"
-            save_file(img, os.path.join(folder, file), file_format, quality, metadata)
+            save_file(img, os.path.join(folder, file), file_format, quality, metadata, strip_header)
             if subfolder is None:
                 results.append(save_preview(img, folder_paths.get_temp_directory()))
             else:
