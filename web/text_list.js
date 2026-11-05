@@ -36,10 +36,11 @@ function createTextListWidget(node, inputName) {
   let editMinHeight = 0;
 
   // 노드 높이는 사용자가 정한 대로 두고, 넘치는 항목은 list 안에서 스크롤한다. 추가 버튼은 list 아래에 고정한다
+  // 폭을 차지하는 스크롤바(데스크탑 앱 등)가 생기고 사라질 때 입력창 폭이 바뀌지 않게 스크롤바 자리를 늘 비워 둔다
   const container = document.createElement("div");
   container.style.cssText = `display:flex;flex-direction:column;gap:${GAP}px;padding:4px 0;height:100%;box-sizing:border-box;`;
   const list = document.createElement("div");
-  list.style.cssText = `flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:${GAP}px;`;
+  list.style.cssText = `flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;display:flex;flex-direction:column;gap:${GAP}px;`;
   container.append(list);
 
   // show_title 위젯이 Off면 보기/편집 모드 모두 제목을 숨긴다

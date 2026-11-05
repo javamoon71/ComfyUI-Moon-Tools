@@ -352,3 +352,11 @@ Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 소켓이 `text list ##`로 보이고, 연결한 문자열의 항목이 index로 선택되는지 확인
+
+## Plan 25 — Text List 스크롤바가 생길 때 입력창 폭 유지
+데스크탑 버전에서 노드 크기를 바꾸거나 입력창을 선택하면 모든 입력창의 가로 길이가 줄어든다. 목록이 넘쳐 세로 스크롤바가 생기면 그 폭만큼 항목이 좁아지는 것으로 보고, 스크롤바 자리를 늘 비워 둔다. UI(`web/text_list.js`)만 바꾼다.
+- [x] 헤드리스 Chrome에서 재현(폭을 차지하는 스크롤바: 노드 크기 변경·편집 시작 때 307 → 292px)
+- [x] 목록에 `scrollbar-gutter: stable` → 같은 시나리오에서 폭이 바뀌지 않는지 확인
+- [x] 테스트, context-notes 기록
+- [x] 커밋, push
+- [ ] ComfyUI 데스크탑에서 노드 크기 변경·입력창 선택 때 폭이 그대로인지 확인
