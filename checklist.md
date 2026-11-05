@@ -360,3 +360,16 @@ Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment
 - [x] 테스트, context-notes 기록
 - [x] 커밋, push
 - [ ] ComfyUI 데스크탑에서 노드 크기 변경·입력창 선택 때 폭이 그대로인지 확인
+
+## Plan 26 — Moon Set/Get Variable (Filtered Set/Get, 기획서 P0)
+`Filtered Set Get 노드 개발 기획서.pdf`(2026-11-05)의 P0. 연결선 없이 이름으로 값을 넘기는 프론트엔드 전용 Set/Get 가상 노드 쌍이고, Get 이름 목록을 정규식 `filter`로 거른다. 사용자 결정은 이 저장소에 추가, P0까지, Nodes 2.0도 처음부터 지원, 이름은 Moon 형식이다. `web/filtered_setget.js` 하나만 추가한다(Python 없음).
+- [x] 프론트엔드 API 확인(ComfyUI_frontend main 63dac6c): 가상 노드 해석, JS 전용 노드 검색 등록, 콤보 목록(두 모드), 메뉴·속성 편집, 붙여넣기 순서
+- [x] Set `FSG_SetNode`: 아무 타입 입력 1개 + `Name` 글 위젯, 가상 노드(F-01)
+- [x] Get `FSG_GetNode`: `Name` 콤보, 출력 1개, `getInputLink`가 같은 그래프의 같은 이름 Set 입력 링크를 돌려줌(F-02, F-03)
+- [x] 이름 중복이면 `_2`, `_3`…으로 바꾸고 토스트(F-05). 이름 입력·붙여넣기·복제 때만, 워크플로 불러오기는 건드리지 않음
+- [x] `filter`, `filterCaseSensitive`, `sort` 속성(`node.properties`) + 우클릭 메뉴로 편집, 매칭 규칙 1~6(F-04, F-12)
+- [x] 노드 검색 표시 이름 `Moon Set Variable (FSG_SetNode)` / `Moon Get Variable (FSG_GetNode)`와 별칭
+- [x] 가짜 LiteGraph로 Node 22 검증(동작 예시 5개, 현재 값 유지, 안내 항목, 중복, 연결 해석), Python 테스트
+- [x] README 반영
+- [x] 커밋, push
+- [ ] ComfyUI(캔버스·Nodes 2.0)에서 확인: 실행 결과가 직접 연결과 같은지, API 내보내기에 Set/Get이 없는지, 목록·필터·이름 중복

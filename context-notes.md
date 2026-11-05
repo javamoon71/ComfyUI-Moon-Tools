@@ -424,3 +424,24 @@
   - 사용자 PC 브라우저는 겹쳐 그리는 스크롤바를 쓰고, 데스크탑(Electron)은 폭을 차지하는 스크롤바를 쓴다.
   - Nodes 2.0 설정 차이. ComfyUI_frontend main(63dac6c, 2026-11-05)의 `Comfy.VueNodes.Enabled`는 `defaultsByInstallVersion: { '1.41.0': isCloud || isDesktop }`라 1.41.0 이후 설치한 데스크탑에서는 기본으로 켜진다. 같은 구조(`WidgetGrid.vue`의 `auto` 행 + `WidgetDOM.vue`)를 흉내 낸 페이지에서는 위젯이 내용 높이만큼 커져 목록이 넘치지 않았다. 그래서 Nodes 2.0이 켜진 쪽에서는 이 증상이 생기지 않을 것으로 본다. 실제 화면에서는 확인하지 않았다.
 - **Image List**: 목록 구조가 같아(`overflow-y:auto`) 같은 일이 생길 수 있지만 요청 범위 밖이라 바꾸지 않았다.
+
+## 2026-11-05 Moon Set/Get Variable (Filtered Set/Get 기획서 P0)
+- **요청**: 바탕화면의 `Filtered Set Get 노드 개발 기획서.pdf`(2026-11-05, 10쪽)에 적힌 노드. KJNodes Set/Get처럼 연결선 없이 이름으로 값을 넘기는 Set/Get 쌍이고, Get 이름 목록을 속성 `filter`(정규식)로 거른다.
+- **사용자 결정**: 이 저장소에 추가(기획서의 별도 팩 `ComfyUI-FilteredSetGet` 대신), 범위 P0(F-01~F-05)과 필터 속성(`filterCaseSensitive`, `sort` = F-12), Nodes 2.0을 켜고 쓰므로 처음부터 지원, 표시 이름 `Moon Set Variable (FSG_SetNode)` / `Moon Get Variable (FSG_GetNode)`.
+- **기획서 권장안을 따른 것**: 신규 개발(B안). 이 저장소는 MIT라 KJNodes(GPL-3.0) 코드를 옮길 수 없다. KJNodes 소스는 보지 않았고, ComfyUI_frontend 소스의 확장 지점만 보고 만들었다. 필터는 정규식, 잘못된 식이면 포함 검사. 고유 타입명 `FSG_SetNode`/`FSG_GetNode`로 KJNodes와 공존.
+- **연결 해석(F-03)**: ComfyUI_frontend main(63dac6c, 2026-11-05) `ExecutableNodeDTO.resolveOutput`은 가상 노드에서 `resolveVirtualOutput(slot)`이 있으면 그것을, 없으면 `getInputLink(slot)`을 쓴다. `getInputLink`가 돌려준 링크의 대상 노드(`LLink.resolve`의 `inputNode`, 여기서는 Set) DTO에서 `resolveInput(target_slot)`을 부르므로, Get이 Set의 입력 링크를 돌려주면 Set 입력의 원본으로 이어진다. 원본 쪽 Bypass·Mute·서브그래프 입력도 그 경로가 처리한다. `getInputLink`만 쓴다. 예전 프론트엔드에도 있는 경로이고, 1단계는 같은 그래프만 찾으므로 `resolveVirtualOutput`(다른 그래프 원본용)이 필요 없다.
+  - Get에는 입력이 없어 `getInputData`/`getInputNode` 등 LGraphNode 메서드는 `slot < inputs.length` 검사에서 먼저 끝난다. `getInputLink`를 덮어써도 그쪽 동작은 바뀌지 않는다.
+  - `graphToPrompt`는 `isVirtualNode`인 노드를 요청에서 뺀다. 가상 노드라도 `computeExecutionOrder`에 들어 DTO는 만들어지므로 Set DTO가 있다.
+- **노드 검색**: JS로만 등록한 타입은 `updateVueAppNodeDefs`가 `display_name: 타입 이름`인 frontend_only 정의를 만든다. `beforeRegisterVueAppNodeDefs` 훅에서 표시 이름·별칭·설명을 바꾼다. 훅이 없는 예전 버전에서는 타입 이름으로 보인다.
+- **속성 편집 UI**: 기획서는 속성 패널을 가정했지만 현재 프론트엔드의 노드 메뉴(`contextMenuConverter.ts` `HARD_BLACKLIST`)는 LiteGraph `Properties`/`Properties Panel` 항목을 숨기고, 오른쪽 패널(설정 탭)에도 `node.properties` 편집기가 없다. 그래서 값은 기획서대로 `addProperty`로 `node.properties`에 두고(워크플로 JSON에 저장, 속성 패널이 있는 예전 버전에서는 거기서도 편집), 편집은 Get 우클릭 메뉴 항목으로 한다. 메뉴는 두 모드 모두 `getNodeMenuOptions` → `getExtraMenuOptions`를 거친다.
+- **콤보 목록**: `options.values`를 함수로 둔다. Nodes 2.0 `WidgetSelectDefault`는 목록을 열 때(`handleOpenChange` → `refreshOptions`) 함수를 다시 부르고, 캔버스 `ComboWidget.onClick`도 열 때마다 부른다(매칭 규칙 5). 캔버스는 함수 values에 deprecated 경고를 세션당 한 번 낸다. 배열로 바꾸면 Nodes 2.0이 위젯 옵션을 복사해 둔 값을 써서 새 Set이 바로 보이지 않을 수 있어 함수를 쓴다. 표시 문구는 두 모드 모두 `options.getOptionLabel`을 쓴다.
+- **노드 구성**: Set = 입력 `value`(`*`) + `Name` 글 위젯, Get = `Name` 콤보 + 출력 `value`(`*`). 기획서 F-01은 입력만 말하므로 Set에 통과 출력은 두지 않았다. 둘 다 `isVirtualNode`, `serialize_widgets`(Name을 워크플로에 저장). 카테고리 `utils`. 타입·색 반영(F-07)은 P1이라 출력은 늘 `*`다.
+- **이름 중복(F-05)**: Set `Name` callback과 `onConfigure`에서 앞뒤 공백을 지우고, 같은 그래프의 다른 Set과 겹치면 `_2`, `_3`…을 붙여 토스트(`Name already in use. Renamed to "…".`)를 띄운다. 빈 이름은 겹쳐도 그대로 둔다. 불러온 워크플로에 이미 있는 중복은 바꾸지 않고, Get 목록에는 한 번만 넣으며 연결은 처음 찾은 Set으로 한다.
+- **매칭 규칙 구현**:
+  - 정규식 플래그는 대소문자 구분 Off면 `i`만 쓴다. `u`는 일부 식(`\-` 등)을 잘못된 식으로 만들어 쓰지 않았다. 한글은 `u` 없이도 맞는다.
+  - 잘못된 식이면 포함 검사(대소문자 설정 따름)로 바꾸고, 사용자가 필터를 바꿀 때 `Invalid filter. Using plain text match.` 토스트를 띄운다. 워크플로 불러오기(`configure`가 속성마다 `onPropertyChanged`를 부름) 때는 띄우지 않는다.
+  - 목록 순서는 현재 값(필터 밖일 때) → 안내 항목(잘못된 식, 맞는 이름 없음) → 맞는 이름이다. 안내 항목은 `\u0000`으로 시작하는 값이라 Set 이름과 겹치지 않고, 고르면 callback에서 직전 값으로 되돌린다. 두 모드 모두 값을 넣은 뒤 callback을 부르고(캔버스 `BaseWidget.setValue`, Nodes 2.0 `createWidgetUpdateHandler`), 위젯 값이 저장소와 연결되어 있어 되돌린 값이 화면에도 보인다.
+  - `getOptionLabel`은 노드에 보이는 값에도 쓰여(캔버스 `_displayValue`, Nodes 2.0 `selectedLabel`) 필터 밖인 현재 값은 노드에도 `(current, filtered out)`으로 보인다. 필터 밖 표시는 Set이 있는데 걸러진 경우만이고, Set이 없는 이름은 그대로 보인다(대상 없음 경고 F-09는 P1).
+  - 정렬: 이름순은 대소문자 무시 코드 순(같으면 코드 순, `A` < `a`)이다. `localeCompare`는 ICU 순서에서 `@`가 `#`보다 앞이라 기획서 예시(`#seed, #width, @model, img_base`)와 달라 쓰지 않았다. 위치순은 y, 같으면 x.
+- **확인**: 가짜 `app.js`와 실제 LiteGraph 순서를 따른 가짜 LGraphNode·그래프로 실제 `web/filtered_setget.js`를 Node 22에서 돌렸다(임시 스크립트, 저장소에는 넣지 않음). 18개 통과. 기획서 동작 예시 5개, 현재 값 유지, 안내 항목 되돌리기, 대소문자, 한글·특수문자(`$ % # @`), 정렬 2가지, 목록 재계산·빈/중복 이름, 이름 중복(입력·붙여넣기·불러오기), 연결 해석(`resolveOutput` → `getInputLink` → `resolveInput` 경로를 옮겨 Set 하나에 Get 여러 개·없는 이름·다른 그래프), 속성 저장·복원, 메뉴 편집, 검색 정의를 확인했다. 실제 ComfyUI 화면(캔버스·Nodes 2.0), 실행 결과, API 내보내기는 ComfyUI PC에서 확인해야 한다.
+- **기획서와 다른 점**: 위치(이 저장소), 필터 편집 진입점(속성 패널 대신 우클릭 메뉴), 잘못된 식 경고(노드 배지 대신 토스트 + 목록 안내 항목). `node.badges`는 두 모드에 보이지만 Nodes 2.0 `usePartitionedBadges`가 반응형이 아닌 `node.badges`를 computed 안에서 읽어 바로 갱신된다는 보장이 없어 쓰지 않았다.

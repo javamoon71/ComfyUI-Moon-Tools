@@ -1,6 +1,6 @@
 # ComfyUI Moon Tools
 
-ComfyUI 커스텀 노드 모음입니다. 이미지·텍스트 목록에서 인덱스나 무작위로 하나를 골라 출력하는 노드, 어떤 타입의 값이든 인덱스로 하나를 고르는 스위치, 텍스트 배열을 항목별 출력으로 나누는 노드, 형식·폴더·메타데이터를 고를 수 있는 이미지 저장 노드, 배경을 지워 투명 이미지를 만드는 노드가 들어 있습니다.
+ComfyUI 커스텀 노드 모음입니다. 이미지·텍스트 목록에서 인덱스나 무작위로 하나를 골라 출력하는 노드, 어떤 타입의 값이든 인덱스로 하나를 고르는 스위치, 텍스트 배열을 항목별 출력으로 나누는 노드, 연결선 없이 이름으로 값을 넘기는 Set/Get 노드, 형식·폴더·메타데이터를 고를 수 있는 이미지 저장 노드, 배경을 지워 투명 이미지를 만드는 노드가 들어 있습니다.
 
 | 노드 | 설명 |
 | --- | --- |
@@ -8,6 +8,7 @@ ComfyUI 커스텀 노드 모음입니다. 이미지·텍스트 목록에서 인�
 | [Moon Text List](#moon-text-list) | 여러 텍스트(프롬프트, 스타일, 캡션 등)를 목록으로 담아 두고, 인덱스 또는 무작위로 선택한 텍스트를 출력 |
 | [Moon Any Index Switch](#moon-any-index-switch) | 어떤 타입의 값이든 여러 개 연결하고, 인덱스로 고른 값 하나를 출력 |
 | [Moon Text List Unpack](#moon-text-list-unpack) | 텍스트 배열(예: Any Index Switch의 `value`)을 받아 항목마다 따로 된 출력으로 나눔 |
+| [Moon Set / Get Variable](#moon-set--get-variable) | 연결선 없이 이름으로 값을 넘기고, Get의 이름 목록을 정규식으로 거름 |
 | [Moon Save Image](#moon-save-image) | 이미지를 PNG, JPG, WebP로 저장하고, 저장 폴더·품질·메타데이터 포함 여부를 선택 |
 | [Moon Remove Background](#moon-remove-background) | 기본 배경 제거 모델로 피사체 마스크와 배경이 투명한 이미지를 함께 출력 |
 
@@ -185,6 +186,59 @@ Ctrl+V는 Image List 노드가 하나만 선택되어 있을 때 목록 끝에 �
 - 출력이 하나도 연결되지 않으면 ComfyUI가 이 노드를 실행하지 않아, 실행 후 항목 수만큼 보이는 동작도 일어나지 않습니다.
 - 항목이 32개보다 많으면 앞의 32개만 출력하고 ComfyUI 콘솔에 경고를 남깁니다.
 
+## Moon Set / Get Variable
+
+연결선 없이 이름으로 값을 넘기는 노드 쌍입니다. **Moon Set Variable**에 값을 연결하고 이름을 붙인 뒤, **Moon Get Variable**에서 그 이름을 고르면 Set에 들어온 값이 그대로 나옵니다. KJNodes의 Set/Get과 같은 방식이고, Get의 이름 목록을 정규식 필터로 거를 수 있습니다. 노드 이름이 달라 KJNodes와 함께 설치해도 됩니다.
+
+- **실행할 때는 직접 연결로 바뀜**: 두 노드는 화면에만 있는 가상 노드입니다. 실행하면 Get 자리에 Set 입력의 원본이 들어가서, 서버는 원본 노드가 다음 노드에 직접 연결된 것과 같은 요청을 받습니다.
+- **같은 그래프 안에서만**: Get은 자기와 같은 그래프(서브그래프 안이면 그 서브그래프)의 Set만 찾습니다.
+- **이름 중복**: 이미 쓰는 이름을 입력하거나 Set을 붙여넣기·복제하면 `_2`, `_3`…을 붙이고 `Name already in use. Renamed to "…".` 알림을 띄웁니다. 저장된 워크플로를 열 때는 이름을 바꾸지 않습니다. 이름 앞뒤 공백은 지웁니다.
+- **필터는 목록에만**: Get마다 이름 목록을 거르는 설정이 있고, 워크플로에 함께 저장됩니다. 필터는 실행 결과에 영향을 주지 않습니다.
+
+노드 검색에서 `moon`, `set`, `get` 또는 `variable`을 검색해 **Moon Set Variable (FSG_SetNode)**, **Moon Get Variable (FSG_GetNode)**를 추가하세요. 노드 추가 메뉴에서는 **utils**에 있습니다.
+
+1. 값을 내보내는 노드의 출력을 Moon Set Variable의 `value`에 연결하고, `Name`에 이름(예: `@model`)을 적습니다.
+2. 값을 쓸 곳에 Moon Get Variable을 놓고 `Name`에서 이름을 고른 뒤, `value` 출력을 다음 노드에 연결합니다.
+3. 하나의 Set에 Get을 여러 개 둘 수 있습니다.
+
+| 노드 | 구분 | 이름 | 타입 | 설명 |
+| --- | --- | --- | --- | --- |
+| Set | 입력 | `value` | 모든 타입 | 넘길 값 |
+| Set | 위젯 | `Name` | 글자 | Get에서 고를 이름 |
+| Get | 위젯 | `Name` | 목록 | 같은 그래프의 Set 이름 중 하나 |
+| Get | 출력 | `value` | 모든 타입 | 고른 Set에 들어온 값 |
+
+### Get 필터
+
+Get 노드를 우클릭하면 메뉴 아래쪽 **Extensions**에 세 항목이 있습니다. 최신 ComfyUI 메뉴에는 속성 패널(Properties Panel)이 없어서 이 메뉴로 바꿉니다. 값은 노드 속성(`filter`, `filterCaseSensitive`, `sort`)에 저장됩니다.
+
+| 메뉴 | 속성 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `Filter: …` | `filter` | 빈 값 | 이름 목록을 거를 정규식. 비우면 전부 표시 |
+| `Match case: On/Off` | `filterCaseSensitive` | Off | 대소문자를 구분해 비교 |
+| `Sort: Name/Canvas position` | `sort` | `name` | 이름순 또는 캔버스 위치순(위 → 아래, 왼쪽 → 오른쪽) |
+
+Set 이름이 `#seed`, `#width`, `@model`, `img_base`일 때 목록은 다음과 같습니다.
+
+| `filter` | 목록에 보이는 이름 |
+| --- | --- |
+| (빈 값) | `#seed`, `#width`, `@model`, `img_base` |
+| `^#` | `#seed`, `#width` |
+| `^[#@]` | `#seed`, `#width`, `@model` |
+| `seed` | `#seed` |
+| `^(` (잘못된 식) | 포함 검사로 바꿈 → 맞는 이름 없음 + 경고 |
+
+- **목록은 열 때마다 다시 계산**: Set을 추가하거나 이름을 바꾸면 바로 반영됩니다.
+- **현재 값은 지우지 않음**: 지금 고른 이름이 필터에 맞지 않아도 값을 그대로 두고, 목록 맨 위와 노드에 `이름 (current, filtered out)`으로 보여 줍니다. 실행도 그대로 됩니다.
+- **잘못된 정규식**: 일반 문자열 포함 검사로 바꾸고 `Invalid filter. Using plain text match.` 알림을 띄웁니다. 목록에도 같은 문구가 보입니다.
+- **맞는 이름 없음**: 목록에 `No names match the filter.`가 보입니다. 안내 문구를 골라도 값은 바뀌지 않습니다.
+
+### 제약
+
+- 이 팩이 없는 환경에서 워크플로를 열면 Set/Get이 없는 노드(Missing Node)로 보이고 연결이 끊깁니다. 워크플로를 공유할 때는 이 팩도 함께 설치해야 합니다.
+- Set 이름을 바꿔도 Get은 따라 바뀌지 않습니다. 고른 이름의 Set이 없으면 Get 출력이 연결된 입력이 비어서, 필수 입력이면 ComfyUI가 입력 누락 오류를 냅니다.
+- 타입·색 표시, 짝 노드로 이동하는 메뉴, 대상 Set이 없을 때의 경고는 아직 없습니다.
+
 ## Moon Save Image
 
 이미지를 PNG, JPG, WebP 파일로 저장합니다. 기본 **Save Image** 노드처럼 쓰면서 저장 폴더, 파일 형식, 품질을 고르고, 메타데이터 포함 여부를 정할 수 있습니다. 이미지 출력이 있어서 다음 노드로 이어서 연결할 수도 있습니다.
@@ -313,7 +367,7 @@ python -m unittest discover tests
 ```
 __init__.py   노드 등록
 nodes/        노드 로직 (노드마다 파일 하나)
-web/          프론트엔드 확장 (목록 UI, 입력 슬롯 자동 추가)
+web/          프론트엔드 확장 (목록 UI, 입력 슬롯 자동 추가, Set/Get 노드)
 tests/        단위 테스트 (노드마다 파일 하나)
 ```
 
