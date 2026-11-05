@@ -455,3 +455,13 @@
   - `onBlur`는 `editing !== i`면 무시한다. 편집이 다른 항목으로 넘어가 이전 입력창이 지워질 때 blur가 오더라도 새 편집을 끄지 않는다.
   - `startEdit`는 그 항목 행 안에서 `input[type="text"]`(제목) 또는 `textarea`를 찾는다.
 - **확인**: 헤드리스 Chrome에 가짜 `app.js`로 실제 `web/text_list.js`를 띄우고 CDP `Input.dispatchMouseEvent`/`insertText`로 실제 마우스·글자 입력을 보냈다(임시 스크립트, 저장소에는 넣지 않음). 내용→다른 내용, 내용→다른 제목, 제목→다른 내용, 입력값 저장, 같은 항목 제목↔내용, 목록 밖 클릭으로 편집 끝, "+ 항목 추가" 포커스의 8개가 통과하고, 수정 전 JS는 6개가 실패한다. ComfyUI 화면에서는 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-05 `text list ##` 입력을 나눈 항목으로 Text List 목록 채우기
+- **요청**: `text list ##`에 `첫번째 내용##`, `두번째 행의 내용##`, `세번째 행`/`##`, `네번째`/빈 줄/`##`, `다섯째 행`으로 된 문자열을 연결하면 입력창 5개가 생기고 내용이 들어가야 한다. 2026-11-04 Plan 24에서는 실행에만 쓰고 위젯 목록은 그대로 두었다("위젯 목록과 radio는 연결 중에도 그대로 보인다").
+- **방식**: 연결된 문자열은 다른 노드의 출력이라 실행해야 안다. 그래서 Python `select`가 `text_list`가 연결되어 있을 때만 `{"ui": {"text_list_items": [내용…]}, "result": 출력}`을 돌려주고, JS `nodeCreated`에서 감싼 `node.onExecuted`가 그 목록을 `textList.value = JSON.stringify(texts)`로 넣는다. 프론트엔드(main 63dac6c `app.ts`)는 `executed` 이벤트에서 `node.onExecuted(detail.output)`을 부르고, 서브그래프 안 노드도 `getNodeByExecutionId`로 찾는다. DOM 위젯 `value` 대입은 `options.setValue`를 거치므로(`domWidget.ts` `writeDomWidgetValue`) 기존 불러오기와 같은 경로로 항목·번호·radio가 다시 그려진다.
+- **ui 키**: `text`, `images` 같은 키는 프론트엔드가 미리보기 등에 쓸 수 있어 `text_list_items`로 따로 지었다. Python 상수 `UI_ITEMS`와 JS가 같은 이름을 쓴다.
+- **연결 안 됨**: 위젯 목록이 원본이므로 ui를 보내지 않고 예전처럼 튜플을 돌려준다.
+- **덮어쓰기**: 실행할 때마다 노드 안 목록(제목 포함)이 나눈 항목으로 바뀌고 워크플로에도 저장된다. 사용자 표현("입력창이 5개가 생기면서 텍스트 내용이 세팅")을 그대로 따랐다. 연결을 끊으면 마지막으로 채워진 목록이 남아 출력에 쓰인다. 연결 중 index 범위·생성 후 제어는 Plan 24 그대로다(항목 수에 묶지 않음).
+- **리스트 입력**: `text list ##`에 STRING 리스트가 들어와 노드가 여러 번 실행되면 ComfyUI가 실행마다의 ui 값을 이어 붙이므로, 모든 실행의 항목이 한 목록에 채워진다.
+- **캐시**: 입력이 같아 실행을 건너뛰어도 ComfyUI가 저장된 ui를 다시 보내 같은 목록이 채워진다(Unpack 기록과 같음).
+- **확인**: 단위 테스트 2개 추가(사용자 예시 → ui 5개 + 출력, 빈 문자열 → 빈 목록, 연결 안 됨 → ui 없음). 기존 테스트는 `run_node`로 출력 튜플만 꺼내 비교한다. 헤드리스 Chrome에서 실제 `web/text_list.js`에 사용자 예시 ui를 넣어 입력창 5개, 내용, 번호 0~4, radio(index 1), 저장 값, 빈 목록, 다른 키 무시, 기존 onExecuted 호출을 확인했다(임시 스크립트, 저장소에는 넣지 않음). Plan 27 항목 전환 테스트도 다시 통과했다. ComfyUI에서 실제 실행은 ComfyUI PC에서 확인해야 한다.

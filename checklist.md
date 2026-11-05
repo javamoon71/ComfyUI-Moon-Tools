@@ -382,3 +382,12 @@ Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment
 - [x] 수정 전 6개 실패 → 수정 후 8개 통과, Python 테스트
 - [x] 커밋, push
 - [ ] ComfyUI(캔버스·Nodes 2.0)에서 항목을 옮겨 가며 바로 입력되는지 확인
+
+## Plan 28 — `text list ##` 입력을 나눈 항목을 Text List 목록에 채우기
+`text list ##`에 연결한 문자열(예: 사용자 예시 5개 항목)이 실행에는 쓰이지만 위젯 목록에는 보이지 않았다. 나눈 항목으로 입력창을 채운다. 연결된 문자열은 실행해야 알 수 있으므로 실행 결과로 채운다.
+- [x] Python: `text_list`가 연결되어 있으면 나눈 항목 내용을 `ui`로 함께 보냄(`nodes/text_list.py`), 테스트 수정·추가
+- [x] JS: `onExecuted`에서 받은 항목으로 위젯 목록을 바꿈(제목은 비움), `web/text_list.js`
+- [x] 헤드리스 Chrome으로 사용자 예시 → 입력창 5개 확인, Python 테스트
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 연결 → 실행 → 입력창 5개 확인

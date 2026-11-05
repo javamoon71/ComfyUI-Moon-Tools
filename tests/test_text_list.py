@@ -13,9 +13,14 @@ class TestTextList(unittest.TestCase):
     def setUp(self):
         self.node = TextList()
 
+    def run_node(self, *args, **kwargs):
+        # text_list가 연결되면 {"ui", "result"}로 돌아오므로 출력 튜플만 꺼낸다
+        out = self.node.select(*args, **kwargs)
+        return out["result"] if isinstance(out, dict) else out
+
     def pick(self, *args, **kwargs):
         # 선택 결과(text, title)만 비교한다. 리스트 출력은 별도 테스트에서 본다
-        title, body = self.node.select(*args, **kwargs)[:2]
+        title, body = self.run_node(*args, **kwargs)[:2]
         return body, title
 
     def test_select_by_index(self):
@@ -76,22 +81,36 @@ class TestTextList(unittest.TestCase):
     def test_text_list_input_splits_by_separator(self):
         # 사용자 예시: 3개 항목을 담은 목록과 같이 처리한다
         joined = "1##\n2##\n343434 ##"
-        out = self.node.select("", 0, text_list=joined)
+        out = self.run_node("", 0, text_list=joined)
         self.assertEqual(out, ("", "1", ["", "", ""], ["1", "2", "343434"]))
         self.assertEqual(self.pick("", 2, text_list=joined), ("343434", ""))
         self.assertEqual(self.pick("", 4, text_list=joined), ("2", ""))
 
     def test_text_list_input_replaces_widget_items(self):
         widget = json.dumps([{"title": "A", "text": "widget"}])
-        self.assertEqual(self.node.select(widget, 0, text_list="x##y")[3], ["x", "y"])
+        self.assertEqual(self.run_node(widget, 0, text_list="x##y")[3], ["x", "y"])
         self.assertEqual(self.pick(widget, 0, text_list="x##y"), ("x", ""))
         # 연결되어 있으면 비어 있어도 위젯 목록으로 돌아가지 않는다
-        self.assertEqual(self.node.select(widget, 0, text_list=" ## \n"), ("", "", [], []))
+        self.assertEqual(self.run_node(widget, 0, text_list=" ## \n"), ("", "", [], []))
         # 연결되지 않으면(None) 위젯 목록을 쓴다
         self.assertEqual(self.pick(widget, 0, text_list=None), ("widget", "A"))
 
     def test_text_list_input_keeps_newlines_inside_item(self):
-        self.assertEqual(self.node.select("", 0, text_list="a\nb##c")[3], ["a\nb", "c"])
+        self.assertEqual(self.run_node("", 0, text_list="a\nb##c")[3], ["a\nb", "c"])
+
+    def test_text_list_input_sends_items_to_ui(self):
+        # 사용자 예시: 나눈 항목 5개를 화면 목록에 채우도록 ui로 보낸다
+        joined = "첫번째 내용##\n두번째 행의 내용##\n세번째 행\n##\n네번째\n\n##\n다섯째 행"
+        out = self.node.select("", 1, text_list=joined)
+        items = ["첫번째 내용", "두번째 행의 내용", "세번째 행", "네번째", "다섯째 행"]
+        self.assertEqual(out["ui"], {"text_list_items": items})
+        self.assertEqual(out["result"], ("", "두번째 행의 내용", [""] * 5, items))
+        # 빈 문자열이면 빈 목록을 보낸다
+        self.assertEqual(self.node.select("", 0, text_list="")["ui"], {"text_list_items": []})
+
+    def test_widget_list_has_no_ui(self):
+        # 연결되지 않으면 위젯 목록이 원본이므로 화면을 바꾸지 않는다
+        self.assertIsInstance(self.node.select("a\nb", 0), tuple)
 
     def test_text_list_input_is_optional_socket(self):
         spec = TextList.INPUT_TYPES()["optional"]["text_list"]

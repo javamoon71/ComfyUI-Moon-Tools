@@ -344,6 +344,15 @@ app.registerExtension({
       textList.refreshIndexRange();
       return result;
     };
+    // text_list(## 문자열)를 연결해 실행하면 Python이 나눈 항목 내용을 보낸다(nodes/text_list.py UI_ITEMS).
+    // 그 항목으로 입력창을 채운다. 제목은 없으므로 비운다. value 대입은 DOM 위젯의 setValue를 거친다
+    const onExecuted = node.onExecuted;
+    node.onExecuted = function (output, ...args) {
+      const result = onExecuted?.call(this, output, ...args);
+      const texts = output?.text_list_items;
+      if (Array.isArray(texts)) textList.value = JSON.stringify(texts);
+      return result;
+    };
     textList.render();
   },
 });

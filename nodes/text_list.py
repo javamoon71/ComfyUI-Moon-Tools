@@ -2,6 +2,8 @@
 import json
 
 SEPARATOR = "##"
+# text_list 입력을 나눈 항목을 프론트엔드로 보내는 ui 키. web/text_list.js와 같아야 한다
+UI_ITEMS = "text_list_items"
 
 
 def item_pair(item):
@@ -60,8 +62,12 @@ class TextList:
     def select(self, text, index, show_title=True, text_list=None):
         # 연결되지 않은 선택 입력은 None으로 들어온다. 연결되어 있으면 빈 문자열이어도 위젯 목록을 쓰지 않는다
         items = parse_items(text) if text_list is None else split_items(text_list)
-        if not items:
-            return ("", "", [], [])
-        # show_title은 UI 표시만 정하므로 숨겨도 제목은 출력한다
-        title, body = items[index % len(items)]
-        return (title, body, [p[0] for p in items], [p[1] for p in items])
+        result = ("", "", [], [])
+        if items:
+            # show_title은 UI 표시만 정하므로 숨겨도 제목은 출력한다
+            title, body = items[index % len(items)]
+            result = (title, body, [p[0] for p in items], [p[1] for p in items])
+        if text_list is None:
+            return result
+        # 연결된 문자열은 실행해야 알 수 있으므로, 나눈 항목을 화면 목록에 채우도록 함께 보낸다(web/text_list.js onExecuted)
+        return {"ui": {UI_ITEMS: [p[1] for p in items]}, "result": result}
