@@ -104,7 +104,18 @@ function createTextListWidget(node, inputName) {
     editMinHeight = list.children[i]?.querySelector("div[data-view]")?.offsetHeight ?? 0;
     editing = i;
     render();
-    list.querySelector(field === "title" ? "input" : "textarea")?.focus();
+    // 행마다 radio(input)가 있으므로 그 항목 안의 제목 입력창을 찾는다
+    list.children[i]?.querySelector(field === "title" ? 'input[type="text"]' : "textarea")?.focus();
+  };
+
+  // 보기 모드 칸은 click이 아니라 mousedown에서 편집을 시작한다. 다른 항목을 편집 중이면 mousedown의 포커스 이동이
+  // 그 입력창의 blur → 다시 그리기를 일으켜 누른 칸이 사라지고 click이 오지 않기 때문이다. 포커스 이동도 막아 새 입력창이 포커스를 지킨다
+  const editOnPress = (el, i, field) => {
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      startEdit(i, field);
+    });
   };
 
   const createButton = (text, title, onClick) => {
@@ -137,7 +148,7 @@ function createTextListWidget(node, inputName) {
         titleStyle +
         "border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" +
         `cursor:text;${item.title ? "" : "opacity:0.5;font-weight:normal;"}`;
-      title.addEventListener("click", () => startEdit(i, "title"));
+      editOnPress(title, i, "title");
 
       const view = document.createElement("div");
       view.textContent = item.text || "(비어 있음)";
@@ -146,7 +157,7 @@ function createTextListWidget(node, inputName) {
         boxStyle +
         `display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${viewLines};overflow:hidden;` +
         `cursor:text;${item.text ? "" : "opacity:0.5;"}`;
-      view.addEventListener("click", () => startEdit(i, "text"));
+      editOnPress(view, i, "text");
 
       if (showTitle()) body.append(title);
       body.append(view);
@@ -184,8 +195,9 @@ function createTextListWidget(node, inputName) {
     });
 
     // 제목과 내용 입력창 사이를 오갈 때는 편집을 유지하고, 항목 밖으로 나가면 보기 모드로 돌아간다
+    // 다른 항목으로 편집이 넘어가 이 입력창이 지워질 때 오는 blur는 무시한다
     const onBlur = (e) => {
-      if (body.contains(e.relatedTarget)) return;
+      if (editing !== i || body.contains(e.relatedTarget)) return;
       editing = -1;
       render();
     };

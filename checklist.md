@@ -373,3 +373,12 @@ Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment
 - [x] README 반영
 - [x] 커밋, push
 - [ ] ComfyUI(캔버스·Nodes 2.0)에서 확인: 실행 결과가 직접 연결과 같은지, API 내보내기에 Set/Get이 없는지, 목록·필터·이름 중복
+
+## Plan 27 — Text List 다른 항목을 누르면 바로 입력 상태로
+한 항목을 편집하다 다른 항목을 누르면 모든 항목이 보기 모드로 돌아가 다시 눌러야 했다. 누른 항목이 바로 입력 상태가 되게 한다. UI(`web/text_list.js`)만 바꾼다.
+- [x] 헤드리스 Chrome에서 실제 마우스 입력으로 재현(편집 중 다른 항목 클릭 → 편집 없음, 포커스 BODY)
+- [x] 보기 모드 칸은 mousedown에서 편집 시작 + 포커스 이동 막음, blur는 편집이 다른 항목으로 넘어갔으면 무시
+- [x] 제목 포커스가 0번 행 radio로 가던 문제 수정(그 항목 안의 `input[type="text"]`)
+- [x] 수정 전 6개 실패 → 수정 후 8개 통과, Python 테스트
+- [x] 커밋, push
+- [ ] ComfyUI(캔버스·Nodes 2.0)에서 항목을 옮겨 가며 바로 입력되는지 확인

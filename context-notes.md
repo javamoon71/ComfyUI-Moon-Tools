@@ -445,3 +445,13 @@
   - 정렬: 이름순은 대소문자 무시 코드 순(같으면 코드 순, `A` < `a`)이다. `localeCompare`는 ICU 순서에서 `@`가 `#`보다 앞이라 기획서 예시(`#seed, #width, @model, img_base`)와 달라 쓰지 않았다. 위치순은 y, 같으면 x.
 - **확인**: 가짜 `app.js`와 실제 LiteGraph 순서를 따른 가짜 LGraphNode·그래프로 실제 `web/filtered_setget.js`를 Node 22에서 돌렸다(임시 스크립트, 저장소에는 넣지 않음). 18개 통과. 기획서 동작 예시 5개, 현재 값 유지, 안내 항목 되돌리기, 대소문자, 한글·특수문자(`$ % # @`), 정렬 2가지, 목록 재계산·빈/중복 이름, 이름 중복(입력·붙여넣기·불러오기), 연결 해석(`resolveOutput` → `getInputLink` → `resolveInput` 경로를 옮겨 Set 하나에 Get 여러 개·없는 이름·다른 그래프), 속성 저장·복원, 메뉴 편집, 검색 정의를 확인했다. 실제 ComfyUI 화면(캔버스·Nodes 2.0), 실행 결과, API 내보내기는 ComfyUI PC에서 확인해야 한다.
 - **기획서와 다른 점**: 위치(이 저장소), 필터 편집 진입점(속성 패널 대신 우클릭 메뉴), 잘못된 식 경고(노드 배지 대신 토스트 + 목록 안내 항목). `node.badges`는 두 모드에 보이지만 Nodes 2.0 `usePartitionedBadges`가 반응형이 아닌 `node.badges`를 computed 안에서 읽어 바로 갱신된다는 보장이 없어 쓰지 않았다.
+
+## 2026-11-05 Text List 다른 항목을 누르면 바로 입력 상태로
+- **증상(사용자)**: 한 입력창에서 작업하다 다른 입력창을 누르면 모든 입력창이 대기 상태(보기 모드)가 되어 한 번 더 눌러야 했다.
+- **원인 1**: 보기 모드 칸은 `click`에서 편집을 시작했다. 편집 중 다른 칸을 누르면 mousedown의 포커스 이동으로 편집 입력창에 blur가 먼저 오고, blur가 `editing = -1` + `render()`로 목록을 다시 그려 누른 칸이 DOM에서 사라진다. 그래서 click이 그 칸에 오지 않아 편집이 시작되지 않았다.
+- **원인 2**: `startEdit`가 제목 입력창을 `list.querySelector("input")`로 찾았는데, 2026-11-04에 행마다 radio(`input`)를 넣은 뒤로는 0번 행 radio가 먼저 잡혔다. 제목 칸 클릭과 "+ 항목 추가"에서 포커스가 radio로 가서 바로 입력되지 않았다.
+- **수정**:
+  - 보기 모드 제목·내용 칸은 왼쪽 버튼 `mousedown`에서 `preventDefault` 후 `startEdit`. 버튼·radio와 같은 방식이다. 기본 동작을 막지 않으면 mousedown 뒤의 포커스 처리가 방금 포커스를 준 새 입력창을 다시 blur시킨다.
+  - `onBlur`는 `editing !== i`면 무시한다. 편집이 다른 항목으로 넘어가 이전 입력창이 지워질 때 blur가 오더라도 새 편집을 끄지 않는다.
+  - `startEdit`는 그 항목 행 안에서 `input[type="text"]`(제목) 또는 `textarea`를 찾는다.
+- **확인**: 헤드리스 Chrome에 가짜 `app.js`로 실제 `web/text_list.js`를 띄우고 CDP `Input.dispatchMouseEvent`/`insertText`로 실제 마우스·글자 입력을 보냈다(임시 스크립트, 저장소에는 넣지 않음). 내용→다른 내용, 내용→다른 제목, 제목→다른 내용, 입력값 저장, 같은 항목 제목↔내용, 목록 밖 클릭으로 편집 끝, "+ 항목 추가" 포커스의 8개가 통과하고, 수정 전 JS는 6개가 실패한다. ComfyUI 화면에서는 ComfyUI PC에서 확인해야 한다.
