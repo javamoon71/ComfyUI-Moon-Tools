@@ -465,3 +465,15 @@
 - **리스트 입력**: `text list ##`에 STRING 리스트가 들어와 노드가 여러 번 실행되면 ComfyUI가 실행마다의 ui 값을 이어 붙이므로, 모든 실행의 항목이 한 목록에 채워진다.
 - **캐시**: 입력이 같아 실행을 건너뛰어도 ComfyUI가 저장된 ui를 다시 보내 같은 목록이 채워진다(Unpack 기록과 같음).
 - **확인**: 단위 테스트 2개 추가(사용자 예시 → ui 5개 + 출력, 빈 문자열 → 빈 목록, 연결 안 됨 → ui 없음). 기존 테스트는 `run_node`로 출력 튜플만 꺼내 비교한다. 헤드리스 Chrome에서 실제 `web/text_list.js`에 사용자 예시 ui를 넣어 입력창 5개, 내용, 번호 0~4, radio(index 1), 저장 값, 빈 목록, 다른 키 무시, 기존 onExecuted 호출을 확인했다(임시 스크립트, 저장소에는 넣지 않음). Plan 27 항목 전환 테스트도 다시 통과했다. ComfyUI에서 실제 실행은 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-06 Moon Image List Simple
+- **요청**: `image_list_simple.py`로 Image List처럼 이미지를 배열로 관리만 하고 출력은 image list인 단순한 노드. 추가는 드래그 앤 드롭 또는 Ctrl+V.
+- **UI 결정 과정**: 처음에는 Image List의 `IMAGE_LIST` 위젯을 그대로 재사용하려 했다(위젯 타입 기준으로 동작하므로 JS 변경 없이 드롭·Ctrl+V가 됨). 작업 중 사용자가 UI 스크린샷을 보냈다. 첫 스크린샷에는 Upload / Input Folder / Clear 버튼, 클릭으로 켜고 끄기, `ref_images` 출력이 있었는데, 그것을 묻는 중에 사용자가 질문을 거절하고 버튼 없는 단순한 스크린샷을 다시 보내 "이 UI처럼 심플하게"라고 했다. 그래서 버튼·켜기/끄기·`ref_images`·안내 문구는 넣지 않았다.
+- **스크린샷을 따른 것**: 썸네일 카드를 세로로 쌓고 높이 80px에 너비는 원본 비율(노드보다 넓으면 비율 유지로 축소), 왼쪽 아래 번호는 1부터(Image List는 0부터), 오른쪽 위 원형 ✕, 목록 안 세로 스크롤. 출력 이름 `image_list`.
+- **스크린샷에 없지만 넣은 것**: 빈 목록 안내("이미지를 끌어다 놓거나 Ctrl+V로 붙여넣으세요"), 카드 드래그 순서 변경(요청의 "image_list.py처럼 배열로 관리", 놓을 위치는 카드 사이 간격에 바깥 그림자 선으로 표시).
+- **위젯 타입 분리**: 모양이 달라 `IMAGE_LIST_SIMPLE`로 새로 만들었다. 저장 값은 Image List와 같은 파일 이름 JSON 배열이라 Python은 `nodes/image_list.py`의 `parse_items`/`image_path`/`load_image`를 import해 쓴다.
+- **공용 JS**: `parseValue`, `thumbnailUrl`, `uploadImage`, Ctrl+V 처리(`pasteIntoImageList`)를 `web/image_list_common.js`로 옮겼다(index_control.js와 같이 함수만 내보냄). 새 파일이 `image_list.js`를 직접 import하지 않은 이유는, 확장 URL에 쿼리 등이 붙어 모듈 주소가 달라지면 Image List 확장이 두 번 등록될 수 있어서다.
+  - 붙여넣기는 `IMAGE_LIST`와 `IMAGE_LIST_SIMPLE` 위젯을 함께 세어 둘을 합쳐 하나만 선택되었을 때만 추가한다. 각 확장이 따로 세면 둘을 함께 선택했을 때 양쪽에 다 들어간다.
+  - 두 확장의 `setup`이 같은 함수를 `addEventListener("paste", fn, true)`로 등록하므로 브라우저가 하나로 합친다(헤드리스 Chrome에서 붙여넣기 한 번에 업로드 1회 확인).
+- **출력**: `OUTPUT_IS_LIST = (True,)`인 IMAGE 리스트. batch는 크기가 같아야 해서 쓰지 않았다. MASK 출력은 요청("image list가 되는 기능만")에 없어 넣지 않았다. 빈 목록은 Image List처럼 ValueError. IS_CHANGED는 모든 파일의 이름+수정 시각이라 순서를 바꾸거나 같은 이름 파일을 덮어쓰면 다시 실행된다.
+- **확인**: Python 테스트 66개 통과(새 6개, folder_paths 가짜 모듈은 test_save_image처럼 setUp에서 바꾸고 되돌림). 헤드리스 Chrome에 가짜 `app.js`/`api.js`로 실제 `web/image_list.js`, `image_list_common.js`, `image_list_simple.js`를 띄워 28개 확인(빈 안내, 번호, 썸네일 주소, ✕, 목록 드롭(텍스트 파일 무시), 노드 드롭, 카드 순서 변경 3가지, Ctrl+V 6가지, Image List 회귀)하고 화면을 캡처해 스크린샷과 비교했다(임시 스크립트, 저장소에는 넣지 않음). 실제 ComfyUI 화면(캔버스·Nodes 2.0)과 실행은 ComfyUI PC에서 확인해야 한다.

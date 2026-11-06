@@ -391,3 +391,14 @@ Text List(Plan 21)와 같이 `random` On/Off 대신 `index`의 fixed / increment
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 연결 → 실행 → 입력창 5개 확인
+
+## Plan 29 — Moon Image List Simple 노드
+Image List처럼 이미지를 배열로 관리하되 index 없이 모든 이미지를 IMAGE 리스트로 출력한다. 추가는 드래그 앤 드롭과 Ctrl+V. UI는 사용자 스크린샷(원본 비율 썸네일 카드, 왼쪽 아래 번호, 오른쪽 위 ✕, 세로 스크롤)을 따른다.
+- [x] `nodes/image_list_simple.py`: 입력 `images`(IMAGE_LIST_SIMPLE), 출력 `image_list`(IMAGE, OUTPUT_IS_LIST), Image List의 parse_items/load_image 재사용
+- [x] 등록 `MoonImageListSimple` / `Moon Image List Simple (MoonImageListSimple)` (`__init__.py`)
+- [x] 업로드·썸네일 주소·목록 해석·Ctrl+V 처리를 `web/image_list_common.js`로 옮기고 Image List가 import, 붙여넣기는 두 노드 위젯을 함께 셈
+- [x] 카드 목록 위젯 `web/image_list_simple.js`(드롭, 노드 드롭, Ctrl+V, 카드 드래그 순서 변경, ✕ 삭제)
+- [x] 단위 테스트 `tests/test_image_list_simple.py`(66개 통과), 헤드리스 Chrome으로 실제 JS 28개 확인 + 화면 캡처
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 드롭·Ctrl+V·순서 변경과 `image_list` 출력 확인

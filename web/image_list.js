@@ -1,38 +1,12 @@
 // Image List 노드의 IMAGE_LIST 입력을 썸네일 목록으로 보여주고, 이미지 업로드/삭제로 항목을 관리하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
-import { api } from "../../scripts/api.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
+import { parseValue, pasteIntoImageList, thumbnailUrl, uploadImage } from "./image_list_common.js";
 
 const THUMB_SIZE = 128;
 const ADD_BUTTON_HEIGHT = 30;
 const GAP = 4;
 const IMAGE_LIST_DRAG_TYPE = "application/x-comfyui-moon-image-list-item";
-
-function parseValue(value) {
-  try {
-    const parsed = JSON.parse(String(value ?? ""));
-    if (Array.isArray(parsed)) return parsed.map(String).filter((v) => v.trim());
-  } catch {}
-  return String(value ?? "").split("\n").filter((v) => v.trim());
-}
-
-// 저장 이름은 기본 Load Image와 같은 "subfolder/name" 형식이다
-function thumbnailUrl(item) {
-  const slash = item.lastIndexOf("/");
-  const subfolder = slash < 0 ? "" : item.slice(0, slash);
-  const filename = item.slice(slash + 1);
-  const params = new URLSearchParams({ filename, subfolder, type: "input" });
-  return api.apiURL(`/view?${params}`);
-}
-
-async function uploadImage(file) {
-  const body = new FormData();
-  body.append("image", file);
-  const resp = await api.fetchApi("/upload/image", { method: "POST", body });
-  if (resp.status !== 200) throw new Error(`${resp.status} ${resp.statusText}`);
-  const data = await resp.json();
-  return data.subfolder ? `${data.subfolder}/${data.name}` : data.name;
-}
 
 function createImageListWidget(node, inputName) {
   let items = [];
@@ -215,37 +189,6 @@ function createImageListWidget(node, inputName) {
   widget.addFiles = addFiles;
   render();
   return { widget };
-}
-
-// 글 입력칸에 붙여넣을 때는 브라우저 기본 동작에 맡긴다. ComfyUI 붙여넣기 처리와 같은 기준이다
-const NON_TEXT_INPUT_TYPES = ["button", "checkbox", "file", "hidden", "image", "radio", "range", "reset", "submit"];
-
-function isTextInput(target) {
-  return (
-    target instanceof HTMLTextAreaElement ||
-    (target instanceof HTMLElement && target.isContentEditable) ||
-    (target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.includes(target.type))
-  );
-}
-
-// 선택된 Image List 노드가 하나면 클립보드 이미지(Ctrl+V)를 그 목록에 추가한다.
-// ComfyUI 기본 처리는 이미지 노드가 아니면 새 Load Image 노드를 만들므로 capture 단계에서 먼저 받는다.
-// 최신 프론트엔드는 preventDefault된 붙여넣기를 건너뛰고, 그 검사가 없는 예전 버전은 stopPropagation으로 막는다
-function pasteIntoImageList(e) {
-  const canvas = app.canvas;
-  if (!canvas || canvas.selectOnly || isTextInput(e.target) || window.getSelection()?.isCollapsed === false) return;
-  // selected_nodes는 최신 프론트엔드에서 경고를 내므로 selectedItems가 없는 예전 버전에서만 쓴다
-  const selected = canvas.selectedItems ? [...canvas.selectedItems] : Object.values(canvas.selected_nodes ?? {});
-  const widgets = selected.map((item) => item.widgets?.find((w) => w.type === "IMAGE_LIST")).filter(Boolean);
-  if (widgets.length !== 1) return;
-  const files = [...(e.clipboardData?.items ?? [])]
-    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
-    .map((item) => item.getAsFile())
-    .filter(Boolean);
-  if (!files.length) return;
-  e.preventDefault();
-  e.stopPropagation();
-  widgets[0].addFiles(files);
 }
 
 app.registerExtension({
