@@ -10,10 +10,11 @@ function createImageListSimpleWidget(node, inputName) {
   let items = [];
   let draggedIndex = null;
 
-  // 노드 높이는 사용자가 정한 대로 두고, 넘치는 카드는 목록 안에서 스크롤한다
+  // 카드는 노드 폭에 맞춰 가로를 먼저 채우고 넘치면 다음 줄로 간다.
+  // 노드 높이는 사용자가 정한 대로 두고, 넘치는 줄은 목록 안에서 스크롤한다
   const list = document.createElement("div");
   list.style.cssText =
-    `height:100%;box-sizing:border-box;overflow-y:auto;display:flex;flex-direction:column;align-items:flex-start;` +
+    `height:100%;box-sizing:border-box;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;` +
     `gap:${GAP}px;padding:${GAP}px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:4px;`;
 
   const clearDropMarks = () => {
@@ -22,15 +23,17 @@ function createImageListSimpleWidget(node, inputName) {
       delete el.dataset.dropPosition;
     });
   };
-  // 카드 아래쪽 절반에 놓으면 그 카드 뒤로 옮긴다
-  const isAfter = (e, card) => e.clientY >= card.getBoundingClientRect().top + card.offsetHeight / 2;
+  // 카드 오른쪽 절반에 놓으면 그 카드 뒤로 옮긴다
+  const isAfter = (e, card) => e.clientX >= card.getBoundingClientRect().left + card.offsetWidth / 2;
 
   const render = () => {
     list.replaceChildren();
     if (items.length === 0) {
       const empty = document.createElement("div");
       empty.textContent = "이미지를 끌어다 놓거나 Ctrl+V로 붙여넣으세요";
-      empty.style.cssText = "margin:auto;opacity:0.5;font-size:12px;text-align:center;";
+      // 줄을 위로 붙여 쌓으므로 margin:auto로는 세로 가운데가 되지 않는다. 목록을 채워서 가운데에 둔다
+      empty.style.cssText =
+        "width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;opacity:0.5;font-size:12px;";
       list.append(empty);
       return;
     }
@@ -62,7 +65,7 @@ function createImageListSimpleWidget(node, inputName) {
         const after = isAfter(e, card);
         card.dataset.dropPosition = after ? "after" : "before";
         // 카드 사이 간격에 놓일 위치를 선으로 보여 준다
-        card.style.boxShadow = `0 ${after ? GAP - 2 : 2 - GAP}px 0 var(--input-text)`;
+        card.style.boxShadow = `${after ? GAP - 2 : 2 - GAP}px 0 0 var(--input-text)`;
       });
       card.addEventListener("dragleave", (e) => {
         if (card.contains(e.relatedTarget)) return;

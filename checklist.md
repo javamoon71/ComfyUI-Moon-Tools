@@ -402,3 +402,13 @@ Image List처럼 이미지를 배열로 관리하되 index 없이 모든 이미�
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 드롭·Ctrl+V·순서 변경과 `image_list` 출력 확인
+
+## Plan 30 — Image List Simple 카드를 가로 먼저 채우기
+카드를 세로로만 쌓지 않고, 노드 폭에 맞춰 가로를 먼저 채운 뒤 다음 줄로 넘긴다. UI(`web/image_list_simple.js`)만 바꾼다.
+- [x] 목록을 `flex-wrap:wrap` + `align-content:flex-start`로 바꿈
+- [x] 카드 드래그 앞/뒤 판정을 위/아래 절반에서 왼쪽/오른쪽 절반으로, 놓을 위치 선도 좌우로
+- [x] 빈 목록 안내를 목록 가운데에 두도록 바꿈(줄을 위로 붙이므로 margin:auto로는 세로 가운데가 안 됨)
+- [x] 헤드리스 Chrome 35개 확인(넓은 폭 한 줄, 좁은 폭 줄바꿈, 아주 좁은 폭에서 넓은 카드 축소, 좌우 표시선) + 화면 캡처, Python 테스트
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 노드 폭을 바꿀 때 카드가 다시 배치되는지 확인
