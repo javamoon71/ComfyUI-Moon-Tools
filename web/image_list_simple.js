@@ -2,20 +2,77 @@
 import { app } from "../../scripts/app.js";
 import { parseValue, pasteIntoImageList, thumbnailUrl, uploadImage } from "./image_list_common.js";
 
+// 썸네일 높이는 노드 안에 카드가 모두 들어가도록 MIN ~ THUMB_HEIGHT 사이에서 고른다
 const THUMB_HEIGHT = 80;
+const MIN_THUMB_HEIGHT = 32;
+const BORDER = 2;
 const GAP = 6;
 const CARD_DRAG_TYPE = "application/x-comfyui-moon-image-list-simple-card";
 
 function createImageListSimpleWidget(node, inputName) {
   let items = [];
   let draggedIndex = null;
+  // 썸네일 원본 비율(너비/높이). 이미지를 불러오기 전에는 1로 본다
+  const ratios = new Map();
 
   // 카드는 노드 폭에 맞춰 가로를 먼저 채우고 넘치면 다음 줄로 간다.
-  // 노드 높이는 사용자가 정한 대로 두고, 넘치는 줄은 목록 안에서 스크롤한다
+  // 노드 높이는 사용자가 정한 대로 두고, 최소 크기로도 넘치는 줄은 목록 안에서 스크롤한다
   const list = document.createElement("div");
   list.style.cssText =
     `height:100%;box-sizing:border-box;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;` +
     `gap:${GAP}px;padding:${GAP}px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:4px;`;
+
+  // 썸네일 높이를 CSS 변수로 바꾼다. ✕와 번호도 함께 줄인다
+  const setThumbHeight = (h) => {
+    list.style.setProperty("--moon-thumb", `${h}px`);
+    list.style.setProperty("--moon-x", `${Math.max(14, Math.min(20, Math.round(h / 4)))}px`);
+    list.style.setProperty("--moon-badge", `${Math.max(9, Math.min(11, Math.round(h / 7)))}px`);
+  };
+  setThumbHeight(THUMB_HEIGHT);
+
+  // 썸네일 높이 h로 카드를 가로부터 채웠을 때 목록 내용의 높이. flex-wrap 줄바꿈을 그대로 따라 한다
+  const layoutHeight = (h, width) => {
+    let rows = 1;
+    let x = 0;
+    for (const item of items) {
+      const w = Math.min(h * (ratios.get(item) ?? 1) + BORDER * 2, width);
+      if (x > 0 && x + GAP + w > width) {
+        rows += 1;
+        x = w;
+      } else {
+        x += (x > 0 ? GAP : 0) + w;
+      }
+    }
+    return rows * (h + BORDER * 2) + (rows - 1) * GAP;
+  };
+
+  // 모든 카드가 목록 안에 들어가는 가장 큰 썸네일 높이를 고른다. 최소 크기로도 넘치면 최소 크기로 두고 스크롤한다.
+  // 소수점 폭 차이로 브라우저가 줄을 하나 더 만들지 않도록 폭을 1px 덜 잡는다
+  const fit = () => {
+    const width = list.clientWidth - GAP * 2 - 1;
+    const height = list.clientHeight - GAP * 2;
+    if (width <= 0 || height <= 0 || items.length === 0) return;
+    let lo = MIN_THUMB_HEIGHT;
+    let hi = THUMB_HEIGHT;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (layoutHeight(mid, width) <= height) lo = mid;
+      else hi = mid - 1;
+    }
+    setThumbHeight(lo);
+  };
+  // 크기 변경·목록 변경·이미지 로드가 한 프레임에 여러 번 와도 한 번만 맞춘다.
+  // ResizeObserver 콜백 안에서 바로 바꾸면 스크롤바가 생기고 없어지며 관찰 루프 경고가 날 수 있다
+  let fitPending = false;
+  const scheduleFit = () => {
+    if (fitPending) return;
+    fitPending = true;
+    requestAnimationFrame(() => {
+      fitPending = false;
+      fit();
+    });
+  };
+  new ResizeObserver(scheduleFit).observe(list);
 
   const clearDropMarks = () => {
     list.querySelectorAll("[data-drop-position]").forEach((el) => {
@@ -28,6 +85,7 @@ function createImageListSimpleWidget(node, inputName) {
 
   const render = () => {
     list.replaceChildren();
+    scheduleFit();
     if (items.length === 0) {
       const empty = document.createElement("div");
       empty.textContent = "이미지를 끌어다 놓거나 Ctrl+V로 붙여넣으세요";
@@ -43,7 +101,7 @@ function createImageListSimpleWidget(node, inputName) {
       card.title = item;
       card.style.cssText =
         "position:relative;flex-shrink:0;max-width:100%;box-sizing:border-box;line-height:0;cursor:grab;" +
-        "border:2px solid var(--input-text);border-radius:8px;overflow:hidden;";
+        `border:${BORDER}px solid var(--input-text);border-radius:8px;overflow:hidden;`;
 
       card.addEventListener("dragstart", (e) => {
         draggedIndex = i;
@@ -83,24 +141,31 @@ function createImageListSimpleWidget(node, inputName) {
         render();
       });
 
-      // 높이를 맞추고 너비는 원본 비율을 따른다. 노드보다 넓으면 비율을 지킨 채 줄인다
+      // 높이를 맞추고 너비는 원본 비율을 따른다. 노드보다 넓으면 비율을 지킨 채 줄인다.
+      // 비율을 알게 되면 크기를 다시 맞춘다
       const thumb = document.createElement("img");
+      thumb.addEventListener("load", () => {
+        if (!thumb.naturalWidth || !thumb.naturalHeight) return;
+        ratios.set(item, thumb.naturalWidth / thumb.naturalHeight);
+        scheduleFit();
+      });
       thumb.src = thumbnailUrl(item);
       thumb.draggable = false;
-      thumb.style.cssText = `display:block;height:${THUMB_HEIGHT}px;width:auto;max-width:100%;object-fit:contain;`;
+      thumb.style.cssText = "display:block;height:var(--moon-thumb);width:auto;max-width:100%;object-fit:contain;";
 
       const number = document.createElement("span");
       number.textContent = String(i + 1);
       number.style.cssText =
-        "position:absolute;left:0;bottom:0;padding:2px 6px;font-size:11px;line-height:1.3;" +
+        "position:absolute;left:0;bottom:0;padding:1px 5px;font-size:var(--moon-badge);line-height:1.3;" +
         "color:#fff;background:#000b;border-top-right-radius:6px;pointer-events:none;";
 
       const remove = document.createElement("button");
       remove.textContent = "✕";
       remove.title = "삭제";
       remove.style.cssText =
-        "position:absolute;top:4px;right:4px;width:20px;height:20px;padding:0;border:none;border-radius:50%;" +
-        "font-size:11px;line-height:20px;color:#fff;background:#000b;cursor:pointer;";
+        "position:absolute;top:calc(var(--moon-x) / 5);right:calc(var(--moon-x) / 5);width:var(--moon-x);height:var(--moon-x);" +
+        "padding:0;border:none;border-radius:50%;font-size:calc(var(--moon-x) * 0.55);line-height:var(--moon-x);" +
+        "color:#fff;background:#000b;cursor:pointer;";
       remove.addEventListener("click", (e) => {
         e.stopPropagation();
         items.splice(i, 1);
@@ -149,8 +214,8 @@ function createImageListSimpleWidget(node, inputName) {
       items = parseValue(value);
       render();
     },
-    // 최소 높이: 카드 하나
-    getMinHeight: () => THUMB_HEIGHT + 4 + GAP * 2 + 2,
+    // 최소 높이: 가장 작은 카드 한 줄. 노드를 이만큼 줄일 수 있다
+    getMinHeight: () => MIN_THUMB_HEIGHT + BORDER * 2 + GAP * 2 + 2,
   });
 
   widget.addFiles = addFiles;

@@ -412,3 +412,14 @@ Image List처럼 이미지를 배열로 관리하되 index 없이 모든 이미�
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 노드 폭을 바꿀 때 카드가 다시 배치되는지 확인
+
+## Plan 31 — Image List Simple 노드 크기에 맞춰 썸네일 줄이기
+노드 가로·세로를 줄이면 썸네일도 함께 작아져서 최대한 많은 이미지가 보이게 한다. UI(`web/image_list_simple.js`)만 바꾼다.
+- [x] 모든 카드가 목록 안에 들어가는 가장 큰 썸네일 높이(80 ~ 32px)를 flex-wrap 줄바꿈을 흉내 낸 계산 + 이분 탐색으로 고름, 32px로도 넘치면 스크롤
+- [x] ResizeObserver(노드 크기), 목록 변경, 이미지 로드(원본 비율) 때 requestAnimationFrame으로 한 번씩 다시 맞춤
+- [x] ✕ 버튼(20 → 14px)과 번호 글자(11 → 9px)도 함께 줄임, CSS 변수 `--moon-thumb`/`--moon-x`/`--moon-badge`
+- [x] 위젯 최소 높이 98 → 50px(가장 작은 카드 한 줄)로 낮춰 노드를 더 줄일 수 있게 함
+- [x] 실제 시간으로 도는 헤드리스 Chrome(DevTools 프로토콜)으로 43개 확인 + 화면 캡처, Python 테스트
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 노드를 줄이고 늘릴 때 썸네일이 따라 바뀌는지 확인
