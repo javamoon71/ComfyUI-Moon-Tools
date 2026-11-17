@@ -433,3 +433,12 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 빈 영역 클릭 후 Ctrl+V 확인
+
+## Plan 33 — Nodes 2.0에서 목록 클릭 후 Ctrl+V가 다른 노드를 붙여넣는 문제
+사용자 PC에서 Text List에 포커스를 두고 Ctrl+V를 누르면 목록에 들어가지 않고 다른 노드(글상자)가 붙여넣어진다. 실제 ComfyUI(프론트엔드 1.59.1)에서 재현해 보니 예전 캔버스는 정상이고, Nodes 2.0에서는 목록 빈 곳을 눌러도 노드가 선택되지 않고 노드 요소(`data-node-id`, `tabindex=0`)에 포커스만 간다. 선택된 노드만 보던 `pasteTargetWidget`이 대상을 못 찾아 ComfyUI가 복사해 둔 노드를 붙여넣는다. 포커스가 있는 노드를 먼저 보게 고친다. 같은 함수를 쓰는 Image List·Image List Simple도 함께 고쳐진다.
+- [x] `web/paste_target.js`: paste 대상 요소가 속한 노드(Nodes 2.0은 `[data-node-id]`, 예전 캔버스는 DOM 위젯 요소)에 맞는 위젯이 있으면 그 위젯, 없으면 기존 선택 규칙
+- [x] 실제 ComfyUI 1.59.1 + 헤드리스 Chrome(실제 마우스·Ctrl+V)으로 캔버스/Nodes 2.0 각각 시나리오 확인: 목록 빈 곳, 제목, 몸통, 다른 노드 글상자에서 복사 후, 항목 편집 후, 다른 곳 클릭 후(붙여넣지 않아야 함), Image List Simple 이미지 붙여넣기
+- [x] Python 테스트
+- [x] README, context-notes
+- [ ] 커밋, push
+- [ ] ComfyUI PC에서 확인

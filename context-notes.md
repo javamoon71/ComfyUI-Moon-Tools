@@ -515,3 +515,16 @@
   - `e.defaultPrevented`면 넘긴다. 다른 확장(예: Image List와 함께 선택)이 이미 처리한 붙여넣기다. ComfyUI도 같은 규칙을 쓴다.
 - **편집 중**: 항목 입력창(textarea/input)에 커서가 있으면 브라우저 기본 붙여넣기로 글이 나뉘지 않고 그대로 들어간다. 빈 영역 클릭은 DomWidget이 노드를 선택하고 포커스는 body라서 처리된다.
 - **확인**: 헤드리스 Chrome에서 가짜 `app.js`/`api.js`와 실제 `web/text_list.js`·`image_list.js`·`image_list_simple.js`로 위젯을 만들고, ComfyUI usePaste처럼 먼저 등록한 document bubble 리스너와 실제 `ClipboardEvent`(DataTransfer)로 42가지 경우를 확인했다(사용자 예시 3개 + 제목, 뒤에 추가, JSON/Python, `##`, CRLF, 넘기는 경우, 선택 규칙, Image List 회귀). 임시 스크립트라 저장소에는 넣지 않았다. Python 테스트 66개 통과. ComfyUI 화면에서 실제 Ctrl+V는 ComfyUI PC에서 확인해야 한다.
+
+## 2026-11-17 Nodes 2.0에서 Ctrl+V가 다른 노드를 붙여넣는 문제
+- **증상(사용자)**: Text List에 마우스로 포커스를 두고 Ctrl+V를 누르면 목록에 들어가지 않고 다른 노드(글상자 노드)가 뜬다.
+- **재현**: 이 PC에 실제 ComfyUI(master, 프론트엔드 1.59.1, CPU)를 스크래치패드 venv에 띄우고 이 저장소를 custom_nodes에 연결했다. 헤드리스 Chrome에 DevTools 프로토콜로 실제 마우스 클릭과 Ctrl+V(`commands: ["paste"]`, 시스템 클립보드)를 보냈다(임시 스크립트, 저장소에는 넣지 않음).
+  - 예전 캔버스: 목록 빈 곳, 제목, 몸통 등 모두 정상이었다. DomWidget.vue가 위젯 요소 click/focus에서 `selectNode`를 부른다(1.14부터).
+  - Nodes 2.0(`Comfy.VueNodes.Enabled`): 목록 빈 곳을 누르면 노드 요소(`div.lg-node[data-node-id][tabindex=0]`)에 포커스만 가고 `selectedItems`는 비어 있다. 선택 목록만 보던 `pasteTargetWidget`이 null을 돌려주고, ComfyUI `usePaste`가 `canvas.pasteFromClipboard()`로 예전에 복사해 둔 노드를 붙여넣는다. 사용자가 말한 "다른 노드의 텍스트 창"이 이것이다. 제목을 누르면 선택되어 정상이었다.
+  - 데스크탑은 1.41.0 이후 설치에서 Nodes 2.0이 기본으로 켜진다(2026-11-05 기록). 사용자 화면은 캔버스처럼 보였지만, 첫 재현(캔버스)에서는 실패가 나오지 않았다.
+- **고침**: `web/paste_target.js`가 paste 대상 요소가 속한 노드를 먼저 본다. Nodes 2.0은 `closest("[data-node-id]")`의 id(문자열, `String(node.id)`로 비교), 예전 캔버스는 위젯 `element`가 대상을 포함하는 노드. 그 노드에 맞는 위젯이 있으면 그 위젯, 없으면 예전 선택 규칙. 그래프는 서브그래프 안을 보도록 `canvas.graph`를 먼저 쓴다.
+  - 포커스 기준이라 다른 곳을 누르면 대상에서 빠진다. 배경 클릭(포커스가 canvas로 감), 다른 노드 제목 클릭(그 노드로 감), 다른 노드 글상자 클릭(글상자에 그대로 붙음) 모두 Text List에 넣지 않는 것을 확인했다.
+  - 같은 함수를 쓰는 Image List·Image List Simple도 Nodes 2.0에서 같은 문제였다(이미지가 목록 대신 새 Load Image 노드로 감). 함께 고쳐졌다.
+- **확인**: 캔버스·Nodes 2.0 각각 13개 시나리오(목록 빈 곳, 제목, 몸통, 다른 노드 글상자에서 실제 Ctrl+C 후 목록/제목, 글상자 클릭 후 제목, 항목 편집 후 목록/제목, + 항목 추가 후 제목, 넣지 않아야 하는 3가지, Image List Simple 이미지 붙여넣기) 모두 통과. 고치기 전 코드로 Nodes 2.0을 돌리면 목록 빈 곳 클릭 3가지와 Image List Simple이 실패한다. Python unittest 66개 통과(`python -m pytest`는 저장소 최상위 `__init__.py`의 상대 import 때문에 수집 단계에서 오류가 나는 기존 문제).
+- **설정이 남는 점**: ComfyUI 설정은 서버(user 폴더)에 저장되므로 테스트 중 Nodes 2.0을 켜면 다음 실행에도 남는다. 모드는 실행마다 명시했다.
+- **배지**: 사용자 화면의 `comfyui-workflow-encrypt` 배지는 jtydhr88/ComfyUI-Workflow-Encrypt 팩이 `from nodes import NODE_CLASS_MAPPINGS`로 ComfyUI 전체 노드 목록을 다시 내보내서, 먼저 로드된 노드의 출처(`RELATIVE_PYTHON_MODULE`)를 덮어쓴 것이다. 그 팩 JS에는 paste 처리가 없어 이 문제와는 무관하다.
