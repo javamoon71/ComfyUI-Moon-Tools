@@ -440,5 +440,5 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] 실제 ComfyUI 1.59.1 + 헤드리스 Chrome(실제 마우스·Ctrl+V)으로 캔버스/Nodes 2.0 각각 시나리오 확인: 목록 빈 곳, 제목, 몸통, 다른 노드 글상자에서 복사 후, 항목 편집 후, 다른 곳 클릭 후(붙여넣지 않아야 함), Image List Simple 이미지 붙여넣기
 - [x] Python 테스트
 - [x] README, context-notes
-- [ ] 커밋, push
+- [x] 커밋, push
 - [ ] ComfyUI PC에서 확인
