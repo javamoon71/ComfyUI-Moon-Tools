@@ -497,3 +497,21 @@
 - **최소 높이**: `getMinHeight`를 80px 카드 기준 98px에서 32px 카드 기준 50px로 낮췄다. 그래야 노드를 그만큼 줄일 수 있다.
 - **Nodes 2.0**: 위젯이 내용 높이만큼 커지는 배치라면(2026-11-05 Text List 기록) 목록 높이가 내용을 따라가므로 현재 크기가 늘 들어가 80px 그대로일 것으로 본다. 확인하지 않았다.
 - **확인**: `--virtual-time-budget` 헤드리스 Chrome에서는 프레임이 나오지 않아 requestAnimationFrame·ResizeObserver가 돌지 않았다(`--run-all-compositor-stages-before-draw`를 넣어도 같음). 그래서 실제 시간으로 띄운 헤드리스 Chrome에 Node 22 내장 WebSocket으로 DevTools 프로토콜을 붙여 결과를 읽었다(임시 스크립트, 저장소에는 넣지 않음). 큰 노드 80px, 300×160 → 44px로 8장 모두 보임(46px이면 넘침), 220×150 → 37px(손 계산과 같음), 160×60 → 32px + 스크롤, ✕ 14px·번호 9px, 다시 키우면 80px, 5장 삭제하면 44 → 66px, 최소 높이 50을 포함해 기존 항목까지 43개 통과.
+
+## 2026-11-17 Text List Ctrl+V로 리스트 붙여넣기
+- **요청**: Text List 목록의 빈 영역을 선택하고 Ctrl+V를 누르면, 리스트 형식인 글은 항목으로 나눠 채운다.
+- **사용자 선택**: 리스트 형식은 JSON/Python 배열, `##` 구분, 한 줄 전체가 `[xxxxx]`인 머리줄(그 글자가 제목). 리스트 형식이 아니면 전체를 항목 하나로 넣는다. 기존 항목이 있으면 빈 항목만 지우고 뒤에 추가한다(Image List 붙여넣기와 같은 방식). Text List Unpack은 입력창·빈 영역이 없어 바꾸지 않는다. Python(`nodes/`)은 바뀌지 않는다. 붙여넣은 항목은 기존 위젯 값(`[{title, text}]`)으로 저장되어 `parse_items`가 그대로 읽는다.
+- **형식 판정 순서**: 배열 → `##` → 머리줄 → 항목 하나. 앞에서 처음 맞는 하나만 쓴다.
+  - 배열은 전체가 `[`로 시작하고 `]`로 끝날 때만 본다. JSON이 먼저고(`{title, text}` 객체면 제목도 살림), 아니면 문자열만 든 Python 리스트(`'`/`"` 따옴표, 마지막 쉼표 허용, `\n \t \r \xhh \uhhhh \Uhhhhhhhh`와 `\ \' \"`)로 읽는다. 문자열이 아닌 값이 섞이면 배열로 보지 않는다.
+  - `##`가 머리줄보다 앞이다. `##`는 이 노드의 `text list ##` 입력 구분자라 쓰였으면 의도가 분명하다고 보았다. 둘 다 쓰인 글은 드물다.
+  - 머리줄 정규식 `^\s*\[([^\]]*)\]\s*$`. 줄 중간의 `[ ]`나 `[a] b [c]`는 머리줄이 아니다. 제목은 `[ ]` 안 글자의 앞뒤 공백을 지운 것(사용자 예시 `[segment 1 | 0–15s – ]` → `segment 1 | 0–15s –`). 머리줄은 내용에 넣지 않는다("[xxxxx]로 구분해서 [xxxxx]는 타이틀로도 들어가"를 구분자 겸 제목으로 해석).
+  - 머리줄만 있고 내용이 하나도 없으면(`[a, b]` 한 줄 등) 머리줄 형식으로 보지 않는다. 그대로 두면 제목만 있고 번호도 없는 항목이 생긴다.
+  - 줄바꿈 `\r\n`은 `\n`으로 바꾼다(Windows 클립보드). 항목마다 앞뒤 공백을 지우고 제목과 내용이 모두 빈 항목은 버린다(`##`만 붙여넣으면 추가할 것이 없다).
+- **붙여넣기 대상**: Image List와 같이 `setup`에서 document capture paste 리스너. 처리하면 `preventDefault` + `stopPropagation`. 대상 노드를 찾는 규칙(글 입력칸·글자 선택·`selectOnly` 제외, `selectedItems`(예전 `selected_nodes`)에서 위젯 타입이 맞는 노드가 하나일 때만)을 `web/paste_target.js` `pasteTargetWidget(e, types)`로 옮겨 두 확장이 같이 쓴다. Text List는 `TEXT_LIST`만 센다.
+- **ComfyUI에 넘기는 경우(ComfyUI_frontend main `usePaste.ts`/`useCopy.ts`, 2026-11-17 확인)**:
+  - 기본 처리는 글을 받으면 워크플로 JSON이면 열고, 아니면 `canvas.pasteFromClipboard()`로 복사해 둔 노드를 붙여넣는다. 그래서 Text List가 선택되어 있으면 먼저 받아 막아야 한다.
+  - 노드를 복사하면 최신 버전은 `text/html`에 `data-comfy-metadata`만 넣어 `text/plain`이 비고, 예전 버전은 `text`를 공백 한 칸으로 둔다. 그래서 글이 공백뿐이면 넘긴다. 별도로 메타데이터 검사는 하지 않았다.
+  - 워크플로 JSON(`{`부터 잘라 `version`, `nodes` 배열, `extra`가 있음)은 usePaste와 같은 판정으로 넘긴다.
+  - `e.defaultPrevented`면 넘긴다. 다른 확장(예: Image List와 함께 선택)이 이미 처리한 붙여넣기다. ComfyUI도 같은 규칙을 쓴다.
+- **편집 중**: 항목 입력창(textarea/input)에 커서가 있으면 브라우저 기본 붙여넣기로 글이 나뉘지 않고 그대로 들어간다. 빈 영역 클릭은 DomWidget이 노드를 선택하고 포커스는 body라서 처리된다.
+- **확인**: 헤드리스 Chrome에서 가짜 `app.js`/`api.js`와 실제 `web/text_list.js`·`image_list.js`·`image_list_simple.js`로 위젯을 만들고, ComfyUI usePaste처럼 먼저 등록한 document bubble 리스너와 실제 `ClipboardEvent`(DataTransfer)로 42가지 경우를 확인했다(사용자 예시 3개 + 제목, 뒤에 추가, JSON/Python, `##`, CRLF, 넘기는 경우, 선택 규칙, Image List 회귀). 임시 스크립트라 저장소에는 넣지 않았다. Python 테스트 66개 통과. ComfyUI 화면에서 실제 Ctrl+V는 ComfyUI PC에서 확인해야 한다.

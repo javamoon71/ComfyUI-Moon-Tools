@@ -423,3 +423,13 @@ Image List처럼 이미지를 배열로 관리하되 index 없이 모든 이미�
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 노드를 줄이고 늘릴 때 썸네일이 따라 바뀌는지 확인
+
+## Plan 32 — Text List 빈 영역에서 Ctrl+V로 리스트 붙여넣기
+Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누르면, 클립보드 글을 항목으로 나눠 목록에 채운다. 리스트 형식(사용자 선택)은 JSON/Python 배열, `##` 구분, 한 줄 전체가 `[제목]`인 머리줄(그 줄이 제목, 다음 머리줄 전까지가 내용)이다. 리스트 형식이 아니면 전체를 항목 하나로 넣는다. 빈 항목은 지우고 기존 목록 뒤에 추가한다. Text List Unpack은 입력 영역이 없어 바꾸지 않는다(사용자 선택). UI(`web/`)만 바꾼다.
+- [x] 붙여넣을 대상 위젯을 찾는 규칙(글 입력칸·글자 선택·selectOnly 제외, 선택된 노드 중 하나만)을 `web/paste_target.js`로 옮기고 Image List가 import
+- [x] `web/text_list.js`: 클립보드 글 해석(배열 → `##` → `[제목]` → 항목 하나), 빈 항목 지우고 뒤에 추가, `setup`에서 document capture paste 리스너
+- [x] 노드 복사(클립보드 글 비어 있음)·워크플로 JSON 붙여넣기는 ComfyUI에 넘김
+- [x] 헤드리스 Chrome으로 실제 JS 확인(형식별 해석, 붙여넣기 대상, ComfyUI 기본 처리 막기/넘기기, Image List 붙여넣기 회귀) 42개, Python 테스트 66개 통과
+- [x] README, context-notes
+- [ ] 커밋, push
+- [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 빈 영역 클릭 후 Ctrl+V 확인

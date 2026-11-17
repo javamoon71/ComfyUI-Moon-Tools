@@ -1,6 +1,7 @@
 // Text List 노드의 TEXT_LIST 입력을 항목 목록으로 보여주고, 클릭한 항목을 여러 줄 입력창으로 편집하게 하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
+import { pasteTargetWidget } from "./paste_target.js";
 
 const LINE_HEIGHT = 18;
 const ROW_PADDING = 12;
@@ -11,6 +12,10 @@ const MIN_VIEW_LINES = 2;
 const TITLE_HEIGHT = 24;
 // Python index 위젯의 max와 같다
 const INDEX_MAX = 0xffffffff;
+// nodes/text_list.py SEPARATOR와 같다
+const SEPARATOR = "##";
+// 붙여넣은 글에서 한 줄 전체가 [제목]인 머리줄
+const HEADER = /^\s*\[([^\]]*)\]\s*$/;
 
 // 항목은 { title, text }. 제목이 생기기 전 워크플로는 문자열 항목이다
 function toItem(value) {
@@ -26,6 +31,92 @@ function parseValue(value) {
     if (Array.isArray(parsed)) return parsed.length ? parsed.map(toItem) : [toItem("")];
   } catch {}
   return text.split("\n").map(toItem);
+}
+
+// Ctrl+V로 붙여넣은 글을 항목으로 나눈다. 리스트 형식은 1) JSON/Python 배열 2) ## 구분 3) [제목] 머리줄 순서로
+// 하나만 고르고, 셋 다 아니면 전체가 항목 하나다. 앞뒤 공백·줄바꿈은 지우고, 제목과 내용이 모두 빈 항목은 버린다
+function parsePasted(value) {
+  const text = value.replace(/\r\n?/g, "\n").trim();
+  const items = parseArray(text) ?? splitBySeparator(text) ?? splitByHeaders(text) ?? [toItem(text)];
+  return items
+    .map((item) => ({ title: item.title.trim(), text: item.text.trim() }))
+    .filter((item) => item.title || item.text);
+}
+
+// 전체가 [ … ]일 때만 배열로 본다. JSON이면 Text List 위젯 값처럼 {title, text} 객체의 제목도 살리고,
+// 아니면 Python 리스트 표기(['a', "b"])로 읽는다. 둘 다 아니면 null
+function parseArray(text) {
+  if (!text.startsWith("[") || !text.endsWith("]")) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.map(toItem);
+  } catch {}
+  return parsePythonList(text)?.map(toItem) ?? null;
+}
+
+// 문자열만 든 Python 리스트를 읽는다. 마지막 쉼표는 허용하고, 문자열이 아닌 값이 섞여 있으면 null
+function parsePythonList(text) {
+  const token = /\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")\s*(,?)\s*/sy;
+  const end = text.length - 1; // 닫는 ]의 위치
+  const items = [];
+  token.lastIndex = 1;
+  while (token.lastIndex < end) {
+    const match = token.exec(text);
+    // 쉼표 없이 다음 값이 이어지면 리스트 표기가 아니다
+    if (!match || (!match[3] && token.lastIndex < end)) return null;
+    items.push(unescapePython(match[1] ?? match[2]));
+  }
+  return items.length ? items : null;
+}
+
+// \n, \t, \r, \xhh, \uhhhh, \Uhhhhhhhh를 글자로 바꾸고, 나머지(\\, \', \")는 \ 뒤 글자를 그대로 쓴다
+function unescapePython(s) {
+  return s.replace(/\\(?:x([\da-fA-F]{2})|u([\da-fA-F]{4})|U([\da-fA-F]{8})|([\s\S]))/g, (_, x, u, U, c) => {
+    const hex = x ?? u ?? U;
+    if (hex) return String.fromCodePoint(parseInt(hex, 16));
+    return { n: "\n", t: "\t", r: "\r" }[c] ?? c;
+  });
+}
+
+// text list ## 입력과 같은 규칙으로 나눈다(nodes/text_list.py split_items). 제목은 없다
+function splitBySeparator(text) {
+  return text.includes(SEPARATOR) ? text.split(SEPARATOR).map(toItem) : null;
+}
+
+// 머리줄부터 다음 머리줄 전까지가 한 항목이고 [ ] 안이 제목이다. 첫 머리줄 앞의 글은 제목 없는 항목이다.
+// 머리줄만 있고 내용이 하나도 없으면([a, b] 한 줄 등) 이 형식이 아니다
+function splitByHeaders(text) {
+  const items = [{ title: "", lines: [] }];
+  for (const line of text.split("\n")) {
+    const header = HEADER.exec(line);
+    if (header) items.push({ title: header[1], lines: [] });
+    else items.at(-1).lines.push(line);
+  }
+  if (items.length === 1 || items.slice(1).every((item) => !item.lines.join("").trim())) return null;
+  return items.map((item) => ({ title: item.title, text: item.lines.join("\n") }));
+}
+
+// 워크플로 JSON 글은 ComfyUI가 그 워크플로를 연다(ComfyUI_frontend usePaste.ts와 같은 판정). 그 동작은 그대로 둔다
+function isWorkflowText(text) {
+  try {
+    const value = JSON.parse(text.slice(text.indexOf("{")));
+    return value?.version != null && Array.isArray(value.nodes) && value.extra != null;
+  } catch {
+    return false;
+  }
+}
+
+// 선택된 Text List 노드가 하나면 클립보드 글(Ctrl+V)을 항목으로 나눠 목록 끝에 붙인다.
+// ComfyUI 기본 처리는 글을 받으면 복사해 둔 노드를 붙여넣으므로, Image List와 같이 capture 단계에서 먼저 받고 막는다.
+// 노드를 복사하면 클립보드 글이 비어 있다(최신은 text/html에만 넣고, 예전은 공백 한 칸). 그때와 이미 처리된 붙여넣기는 넘긴다
+function pasteIntoTextList(e) {
+  const widget = e.defaultPrevented ? null : pasteTargetWidget(e, ["TEXT_LIST"]);
+  const text = e.clipboardData?.getData("text/plain") ?? "";
+  if (!widget || !text.trim() || isWorkflowText(text)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const added = parsePasted(text);
+  if (added.length) widget.addItems(added);
 }
 
 function createTextListWidget(node, inputName) {
@@ -289,12 +380,21 @@ function createTextListWidget(node, inputName) {
   widget.refreshIndexRange = refreshIndexRange;
   widget.syncRadios = syncRadios;
   widget.render = render;
+  // 붙여넣은 항목을 목록 뒤에 붙인다. 제목과 내용이 모두 빈 항목(새 노드의 빈 칸 등)은 지운다
+  widget.addItems = (added) => {
+    items = [...items.filter((item) => item.title.trim() || item.text.trim()), ...added];
+    editing = -1;
+    render();
+  };
   render();
   return { widget };
 }
 
 app.registerExtension({
   name: "ComfyUI-Moon-Tools.TextList",
+  setup() {
+    document.addEventListener("paste", pasteIntoTextList, true);
+  },
   getCustomWidgets() {
     return {
       TEXT_LIST: (node, inputName) => createTextListWidget(node, inputName),
