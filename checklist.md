@@ -431,5 +431,5 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] 노드 복사(클립보드 글 비어 있음)·워크플로 JSON 붙여넣기는 ComfyUI에 넘김
 - [x] 헤드리스 Chrome으로 실제 JS 확인(형식별 해석, 붙여넣기 대상, ComfyUI 기본 처리 막기/넘기기, Image List 붙여넣기 회귀) 42개, Python 테스트 66개 통과
 - [x] README, context-notes
-- [ ] 커밋, push
+- [x] 커밋, push
 - [ ] ComfyUI PC(캔버스·Nodes 2.0)에서 빈 영역 클릭 후 Ctrl+V 확인
