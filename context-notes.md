@@ -528,3 +528,15 @@
 - **확인**: 캔버스·Nodes 2.0 각각 13개 시나리오(목록 빈 곳, 제목, 몸통, 다른 노드 글상자에서 실제 Ctrl+C 후 목록/제목, 글상자 클릭 후 제목, 항목 편집 후 목록/제목, + 항목 추가 후 제목, 넣지 않아야 하는 3가지, Image List Simple 이미지 붙여넣기) 모두 통과. 고치기 전 코드로 Nodes 2.0을 돌리면 목록 빈 곳 클릭 3가지와 Image List Simple이 실패한다. Python unittest 66개 통과(`python -m pytest`는 저장소 최상위 `__init__.py`의 상대 import 때문에 수집 단계에서 오류가 나는 기존 문제).
 - **설정이 남는 점**: ComfyUI 설정은 서버(user 폴더)에 저장되므로 테스트 중 Nodes 2.0을 켜면 다음 실행에도 남는다. 모드는 실행마다 명시했다.
 - **배지**: 사용자 화면의 `comfyui-workflow-encrypt` 배지는 jtydhr88/ComfyUI-Workflow-Encrypt 팩이 `from nodes import NODE_CLASS_MAPPINGS`로 ComfyUI 전체 노드 목록을 다시 내보내서, 먼저 로드된 노드의 출처(`RELATIVE_PYTHON_MODULE`)를 덮어쓴 것이다. 그 팩 JS에는 paste 처리가 없어 이 문제와는 무관하다.
+
+## 2026-11-20 Any Index Switch index 범위 제한
+- **요청(사용자)**: index 값이 0 ~ (연결된 입력 수 − 1)을 넘지 않게, UI에서 증가·감소시켜도 유지.
+- **방식**: Text List·Image List와 같이 index 위젯 `options.max`를 연결된 value 입력 수 − 1(연결이 없으면 0)로 맞춘다. 맞추는 시점은 노드 생성과 `onConnectionsChange`의 microtask(슬롯 정리 뒤). `web/any_index_switch.js`만 바꿨다.
+  - 캔버스: `NumberWidget.setValue`가 화살표·드래그·직접 입력 모두 [min, max]로 자른다(ComfyUI_frontend main 67069da).
+  - Nodes 2.0: `ScrubableNumberInput`이 `max` prop으로 자른다. prop은 위젯 상태의 options를 복사한 값이라 바로 반영되지 않을 수 있다고 봤지만, 실제 1.59.6에서는 연결 직후 `aria-valuemax`가 바뀌었고 +/− 버튼·직접 입력이 끝에서 멈췄다. 그래서 callback에서 따로 자르는 코드는 넣지 않았다.
+- **범위를 넘은 값은 자르지 않고 나머지**: 연결을 끊어 범위를 넘거나, 예전 워크플로(Plan 11 전 increment로 커진 값)를 불러오면 `value % 개수`로 바꾼다. Python이 고르는 입력과 같아 실행 결과가 바뀌지 않는다. 생성 후 제어의 `index.value %= count`(2026-10-27 생성 후 제어 순환)와도 같은 규칙이다. Text List·Image List는 max로 당기지만(마지막 항목), 이 노드는 실행 결과를 지키는 쪽을 골랐다.
+- **불러오기 순서**: `LGraphNode.configure`는 입력과 `onConnectionsChange`를 먼저 처리하고 위젯 값을 `widget.value = ...`로 직접 넣는다(자르지 않음). 범위 맞추기는 microtask라 값 복원이 끝난 뒤에 돈다. 노드 생성 때 max가 0이어도 복원 값이 잘리지 않는다.
+- **생성 후 제어**: `wrapIndexControl`은 실행 중에만 min/max를 넓혔다 되돌리므로 새 max(개수 − 1)와 함께 그대로 동작한다.
+- **Python은 그대로**: index를 링크로 받거나 다른 경로로 큰 값이 와도 나머지 연산으로 순환한다. INPUT_TYPES의 max(`0xFFFFFFFF`)도 그대로다. 백엔드 검증은 이 정적 max를 쓴다.
+- **확인**: 이 PC에 실제 ComfyUI(master, 프론트엔드 1.59.6, CPU)를 스크래치패드에 띄우고 헤드리스 Chrome에 DevTools 프로토콜로 실제 마우스 클릭·키 입력을 보냈다(임시 스크립트, 저장소에는 넣지 않음). 캔버스 16개, Nodes 2.0 17개 모두 통과했다. 새 노드 max 0, 연결 1·3개, 증가 5번(2에서 멈춤), 감소 5번(0에서 멈춤), 직접 입력 7 → 2, value2 끊기(2 → 0, max 1), 끊은 뒤 증가, 다시 연결, 불러오기(2 유지, 7 → 1, 제어 모드 유지), 실제 큐 실행으로 increment 2 → 0 → 1, decrement 0 → 2를 확인했다. 고치기 전 JS는 두 모드 모두 증가가 1 → 5로 넘어가고 직접 입력 7이 그대로 들어가 각각 3개만 통과했다. Python unittest 66개 통과.
+- **테스트 중 관찰**: 첫 실행 한 번은 페이지 메인 스레드가 멈춰 `Runtime.evaluate`가 응답하지 않았다(큐에는 아무것도 들어가지 않음). 그 전에 시간 초과로 중단한 실행이 있던 탭이었다(출력이 버퍼에 남아 어디서 멈췄는지는 모른다). 새 탭에서는 고치기 전·후 JS로 여러 번 돌려 다시 나오지 않았다. 원인은 확인하지 못했다.

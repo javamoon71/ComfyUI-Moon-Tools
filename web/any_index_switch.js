@@ -1,4 +1,4 @@
-// Any Index Switch 노드의 value 입력 슬롯을 연결 상태에 맞춰 자동으로 늘리고 줄이고, 생성 후 제어가 index를 순환시키게 하는 프론트엔드 확장
+// Any Index Switch 노드의 value 입력 슬롯을 연결 상태에 맞춰 자동으로 늘리고 줄이고, index를 연결된 입력 범위 안에 두고 생성 후 제어가 순환시키게 하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 
 const VALUE_NAME = /^value\d+$/;
@@ -19,6 +19,22 @@ function syncValueInputs(node) {
   if (changed) node.setSize([node.size[0], node.computeSize()[1]]);
 }
 
+const connectedCount = (node) =>
+  node.inputs.filter((input) => VALUE_NAME.test(input.name) && input.link != null).length;
+
+// index 위젯의 최대값을 연결된 입력 수-1로 맞춰 화살표·드래그·직접 입력이 범위를 넘지 않게 한다.
+// 연결이 줄어 범위를 넘은 값은 개수로 나눈 나머지로 바꾼다. Python도 같은 입력을 고르므로 실행 결과는 그대로다
+function refreshIndexRange(node) {
+  const index = node.widgets?.find((widget) => widget.name === "index");
+  if (!index) return;
+  const count = connectedCount(node);
+  index.options.max = Math.max(0, count - 1);
+  if (index.value > index.options.max) {
+    index.value = count ? index.value % count : 0;
+    index.callback?.(index.value);
+  }
+}
+
 // 생성 후 제어가 index를 연결된 입력 범위(0 ~ 개수-1) 안에서 순환시키게 한다.
 // 기본 제어는 min/max에서 멈추고 randomize는 max를 뽑지 않으므로, 제어가 도는 동안만 범위를 넓힌 뒤 넘친 값을 반대쪽 끝으로 돌린다.
 // index 입력이 링크로 연결되어 있으면 기본 제어가 값을 바꾸지 않는다
@@ -29,7 +45,7 @@ function wrapIndexControl(node) {
   for (const hook of ["beforeQueued", "afterQueued"]) {
     const original = control[hook];
     control[hook] = function (...args) {
-      const count = node.inputs.filter((input) => VALUE_NAME.test(input.name) && input.link != null).length;
+      const count = connectedCount(node);
       if (!count || control.value === "fixed") return original?.apply(this, args);
       const { min, max } = index.options;
       index.value %= count;
@@ -58,12 +74,17 @@ app.registerExtension({
     nodeType.prototype.onNodeCreated = function (...args) {
       onNodeCreated?.apply(this, args);
       wrapIndexControl(this);
+      refreshIndexRange(this);
     };
     const onConnectionsChange = nodeType.prototype.onConnectionsChange;
     nodeType.prototype.onConnectionsChange = function (...args) {
       onConnectionsChange?.apply(this, args);
-      // 링크를 다른 슬롯으로 옮기면 끊기와 연결이 이어서 일어나므로, 둘 다 끝난 뒤에 슬롯을 맞춘다
-      queueMicrotask(() => syncValueInputs(this));
+      // 링크를 다른 슬롯으로 옮기면 끊기와 연결이 이어서 일어나므로, 둘 다 끝난 뒤에 슬롯을 맞춘다.
+      // 워크플로를 불러올 때는 index 값이 연결보다 나중에 복원되므로, 범위도 복원이 끝난 뒤에 맞춘다
+      queueMicrotask(() => {
+        syncValueInputs(this);
+        refreshIndexRange(this);
+      });
     };
   },
 });

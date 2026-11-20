@@ -442,3 +442,12 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 확인
+
+## Plan 34 — Any Index Switch index를 연결된 입력 범위(0 ~ 개수-1) 안으로
+위젯의 화살표·드래그·직접 입력으로 바꿔도 index가 0 ~ 연결된 value 입력 수-1을 넘지 않게 한다. 생성 후 제어 순환(Plan 11)은 그대로 둔다. UI(`web/any_index_switch.js`)만 바꾼다.
+- [x] 연결이 바뀔 때마다 index 위젯 `options.max`를 개수-1로, 범위를 넘은 값은 개수로 나눈 나머지로(Python 선택과 같게)
+- [x] 실제 ComfyUI 1.59.6(캔버스 16개·Nodes 2.0 17개)에서 화살표·직접 입력·연결 끊기·워크플로 불러오기·생성 후 제어 확인, 고치기 전 JS는 실패
+- [x] Python 테스트
+- [x] README, context-notes
+- [ ] 커밋, push
+- [ ] ComfyUI PC에서 index 화살표가 연결된 입력 수에서 멈추는지 확인
