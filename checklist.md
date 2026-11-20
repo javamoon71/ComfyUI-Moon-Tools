@@ -449,5 +449,5 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] 실제 ComfyUI 1.59.6(캔버스 16개·Nodes 2.0 17개)에서 화살표·직접 입력·연결 끊기·워크플로 불러오기·생성 후 제어 확인, 고치기 전 JS는 실패
 - [x] Python 테스트
 - [x] README, context-notes
-- [ ] 커밋, push
+- [x] 커밋, push (55d8c9c)
 - [ ] ComfyUI PC에서 index 화살표가 연결된 입력 수에서 멈추는지 확인
