@@ -219,6 +219,13 @@ function createImageListSimpleWidget(node, inputName) {
   });
 
   widget.addFiles = addFiles;
+  widget.itemCount = () => items.length;
+  // 확인 후 목록을 비운다. input 폴더의 파일은 지우지 않는다
+  widget.clear = () => {
+    if (!items.length || !confirm(`이미지 ${items.length}개를 목록에서 모두 삭제할까요?`)) return;
+    items = [];
+    render();
+  };
   render();
   return { widget };
 }
@@ -244,6 +251,14 @@ app.registerExtension({
       if (!files.length) return false;
       widget.addFiles(files);
       return true;
+    };
+    // 버튼 없는 UI라 모두 삭제는 노드 우클릭 메뉴에 둔다. 캔버스와 Nodes 2.0 메뉴 모두 getExtraMenuOptions를 거친다.
+    // ComfyUI가 노드 타입마다 prototype에 둔 메뉴(이미지 열기 등)를 먼저 부른다
+    const getExtraMenuOptions = node.getExtraMenuOptions;
+    node.getExtraMenuOptions = function (canvas, options) {
+      const extra = getExtraMenuOptions?.call(this, canvas, options);
+      options.push({ content: "이미지 모두 삭제", disabled: !widget.itemCount(), callback: () => widget.clear() });
+      return extra;
     };
   },
 });

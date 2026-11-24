@@ -451,3 +451,13 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] README, context-notes
 - [x] 커밋, push (55d8c9c)
 - [ ] ComfyUI PC에서 index 화살표가 연결된 입력 수에서 멈추는지 확인
+
+## Plan 35 — 목록 모두 삭제 (Text List·Image List·Image List Simple)
+등록된 항목·이미지를 한 번에 지운다. 셋 다 확인창(confirm)을 띄운 뒤 지우고, 이미지는 목록에서만 빼며 `input` 폴더 파일은 그대로 둔다. 목록 값은 위젯이 관리하므로 UI(`web/`)만 바꾼다.
+- [x] Text List: "+ 항목 추가" 옆 "모두 삭제" 버튼, 빈 항목 하나만 남김(마지막 항목 삭제와 같음), 지울 항목이 없으면 확인창 없음 (`web/text_list.js`)
+- [x] Image List: "+ 이미지 추가" 옆 "모두 삭제" 버튼, index 범위도 다시 맞춤 (`web/image_list.js`)
+- [x] Image List Simple: 버튼 없는 UI라 노드 우클릭 메뉴 "이미지 모두 삭제", 비었으면 비활성 (`web/image_list_simple.js`)
+- [x] 실제 ComfyUI(프론트엔드 1.59.6) + 헤드리스 Chrome 실제 마우스 입력으로 캔버스 20개·Nodes 2.0 20개 확인, Python 테스트
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 확인

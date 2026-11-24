@@ -129,8 +129,18 @@ function createImageListWidget(node, inputName) {
   };
 
   const add = createButton("+ 이미지 추가", "이미지 업로드", () => fileInput.click());
-  add.style.cssText = `height:${ADD_BUTTON_HEIGHT - 4}px;flex-shrink:0;cursor:pointer;`;
-  container.append(add);
+  add.style.cssText = `flex:1;height:${ADD_BUTTON_HEIGHT - 4}px;cursor:pointer;`;
+  // 확인 후 목록을 비운다. input 폴더의 파일은 지우지 않는다
+  const clear = createButton("모두 삭제", "이미지 모두 삭제", () => {
+    if (!items.length || !confirm(`이미지 ${items.length}개를 목록에서 모두 삭제할까요?`)) return;
+    items = [];
+    render();
+  });
+  clear.style.cssText = `height:${ADD_BUTTON_HEIGHT - 4}px;flex-shrink:0;cursor:pointer;`;
+  const buttons = document.createElement("div");
+  buttons.style.cssText = `display:flex;gap:${GAP}px;flex-shrink:0;`;
+  buttons.append(add, clear);
+  container.append(buttons);
 
   const addFiles = async (files) => {
     add.disabled = true;

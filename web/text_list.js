@@ -361,8 +361,20 @@ function createTextListWidget(node, inputName) {
     items.push(toItem(""));
     startEdit(items.length - 1, showTitle() ? "title" : "text");
   });
-  add.style.cssText = `height:${ADD_BUTTON_HEIGHT - 4}px;flex-shrink:0;cursor:pointer;`;
-  container.append(add);
+  add.style.cssText = `flex:1;height:${ADD_BUTTON_HEIGHT - 4}px;cursor:pointer;`;
+  // 제목이나 내용이 있는 항목을 확인 후 모두 지운다. 마지막 항목을 지울 때처럼 빈 항목 하나는 남긴다
+  const clear = createButton("모두 삭제", "항목 모두 삭제", () => {
+    const count = items.filter((item) => item.title.trim() || item.text.trim()).length;
+    if (!count || !confirm(`항목 ${count}개를 모두 삭제할까요?`)) return;
+    items = [toItem("")];
+    editing = -1;
+    render();
+  });
+  clear.style.cssText = `height:${ADD_BUTTON_HEIGHT - 4}px;flex-shrink:0;cursor:pointer;`;
+  const buttons = document.createElement("div");
+  buttons.style.cssText = `display:flex;gap:${GAP}px;flex-shrink:0;`;
+  buttons.append(add, clear);
+  container.append(buttons);
 
   const widget = node.addDOMWidget(inputName, "TEXT_LIST", container, {
     getValue: () => JSON.stringify(items),
