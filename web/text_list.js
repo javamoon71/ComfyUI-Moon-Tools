@@ -1,6 +1,7 @@
 // Text List 노드의 TEXT_LIST 입력을 항목 목록으로 보여주고, 클릭한 항목을 여러 줄 입력창으로 편집하게 하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
+import { createListButton } from "./list_buttons.js";
 import { pasteTargetWidget } from "./paste_target.js";
 
 const LINE_HEIGHT = 18;
@@ -357,20 +358,19 @@ function createTextListWidget(node, inputName) {
   // container 크기는 노드 크기로만 정해진다. list는 스크롤바가 생기고 사라질 때도 크기가 바뀌어 줄 수를 맞추다 다시 호출되므로 쓰지 않는다
   new ResizeObserver(fitViewLines).observe(container);
 
-  const add = createButton("+ 항목 추가", "항목 추가", () => {
+  const add = createListButton("add", "Add", "항목 추가", () => {
     items.push(toItem(""));
     startEdit(items.length - 1, showTitle() ? "title" : "text");
   });
-  add.style.cssText = `flex:1;height:${ADD_BUTTON_HEIGHT - 4}px;cursor:pointer;`;
+  add.style.flex = "1";
   // 제목이나 내용이 있는 항목을 확인 후 모두 지운다. 마지막 항목을 지울 때처럼 빈 항목 하나는 남긴다
-  const clear = createButton("모두 삭제", "항목 모두 삭제", () => {
+  const clear = createListButton("clear", "Clear", "항목 모두 삭제", () => {
     const count = items.filter((item) => item.title.trim() || item.text.trim()).length;
     if (!count || !confirm(`항목 ${count}개를 모두 삭제할까요?`)) return;
     items = [toItem("")];
     editing = -1;
     render();
   });
-  clear.style.cssText = `height:${ADD_BUTTON_HEIGHT - 4}px;flex-shrink:0;cursor:pointer;`;
   const buttons = document.createElement("div");
   buttons.style.cssText = `display:flex;gap:${GAP}px;flex-shrink:0;`;
   buttons.append(add, clear);

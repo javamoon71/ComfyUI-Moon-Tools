@@ -461,3 +461,14 @@ Text List 목록의 빈 영역을 눌러 노드를 선택한 뒤 Ctrl+V를 누�
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 확인
+
+## Plan 36 — Add·Clear 아이콘 버튼, Image List Simple Clear 버튼
+Text List의 "+ 항목 추가"·"모두 삭제"를 아이콘이 붙은 깔끔한 **Add**·**Clear** 버튼으로 바꾸고(사용자 스크린샷), Image List도 같은 버튼으로, 버튼이 없던 Image List Simple에는 목록 아래 **Clear** 버튼을 둔다. UI(`web/`)만 바꾼다.
+- [x] 공용 버튼 `web/list_buttons.js`(＋/휴지통 SVG 아이콘 + 글자, 인라인 모양, Clear는 빨간 글자)
+- [x] Text List·Image List 버튼 교체, Image List 업로드 중 Add 비활성은 투명도로 표시
+- [x] Image List Simple: 목록 + Clear 줄을 담는 컨테이너, 파일 드롭은 컨테이너 전체, 최소 높이에 버튼 줄 더함, 우클릭 메뉴는 유지
+- [x] 실제 ComfyUI 1.59.6 + 헤드리스 Chrome 실제 마우스로 캔버스 34/34, Nodes 2.0 33/34(남은 1개는 Nodes 2.0 노드 높이 제한, 아래 context-notes), Python 테스트
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 버튼 모양 확인
+- [ ] (별도) Nodes 2.0에서 Image List Simple 노드를 썸네일 내용보다 작게 줄일 수 없는 문제

@@ -1,6 +1,7 @@
-// Image List Simple 노드의 이미지 목록을 원본 비율 썸네일 카드로 보여주고, 드래그 앤 드롭·Ctrl+V로 추가, 카드 드래그로 순서 변경, ✕로 삭제하는 프론트엔드 확장
+// Image List Simple 노드의 이미지 목록을 원본 비율 썸네일 카드로 보여주고, 드래그 앤 드롭·Ctrl+V로 추가, 카드 드래그로 순서 변경, ✕·Clear로 삭제하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 import { parseValue, pasteIntoImageList, thumbnailUrl, uploadImage } from "./image_list_common.js";
+import { createListButton, LIST_BUTTON_HEIGHT } from "./list_buttons.js";
 
 // 썸네일 높이는 노드 안에 카드가 모두 들어가도록 MIN ~ THUMB_HEIGHT 사이에서 고른다
 const THUMB_HEIGHT = 80;
@@ -16,11 +17,14 @@ function createImageListSimpleWidget(node, inputName) {
   const ratios = new Map();
 
   // 카드는 노드 폭에 맞춰 가로를 먼저 채우고 넘치면 다음 줄로 간다.
-  // 노드 높이는 사용자가 정한 대로 두고, 최소 크기로도 넘치는 줄은 목록 안에서 스크롤한다
+  // 노드 높이는 사용자가 정한 대로 두고, 최소 크기로도 넘치는 줄은 목록 안에서 스크롤한다. Clear 버튼은 목록 아래에 고정한다
+  const container = document.createElement("div");
+  container.style.cssText = `display:flex;flex-direction:column;gap:${GAP}px;height:100%;box-sizing:border-box;`;
   const list = document.createElement("div");
   list.style.cssText =
-    `height:100%;box-sizing:border-box;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;` +
+    `flex:1;min-height:0;box-sizing:border-box;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;` +
     `gap:${GAP}px;padding:${GAP}px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:4px;`;
+  container.append(list);
 
   // 썸네일 높이를 CSS 변수로 바꾼다. ✕와 번호도 함께 줄인다
   const setThumbHeight = (h) => {
@@ -189,18 +193,29 @@ function createImageListSimpleWidget(node, inputName) {
     }
   };
 
-  // 목록 위에 파일을 끌어다 놓으면 업로드한다. ComfyUI가 이미지를 워크플로로 불러오지 않도록 이벤트 전파를 막는다
+  // 확인 후 목록을 비운다. input 폴더의 파일은 지우지 않는다
+  const clearAll = () => {
+    if (!items.length || !confirm(`이미지 ${items.length}개를 목록에서 모두 삭제할까요?`)) return;
+    items = [];
+    render();
+  };
+  const buttons = document.createElement("div");
+  buttons.style.cssText = "display:flex;justify-content:flex-end;flex-shrink:0;";
+  buttons.append(createListButton("clear", "Clear", "이미지 모두 삭제", clearAll));
+  container.append(buttons);
+
+  // 목록이나 버튼 줄에 파일을 끌어다 놓으면 업로드한다. ComfyUI가 이미지를 워크플로로 불러오지 않도록 이벤트 전파를 막는다
   const hasFiles = (e) => e.dataTransfer?.types?.includes("Files");
-  list.addEventListener("dragover", (e) => {
+  container.addEventListener("dragover", (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
     e.stopPropagation();
     list.style.outline = "2px dashed var(--input-text)";
   });
-  list.addEventListener("dragleave", (e) => {
-    if (!list.contains(e.relatedTarget)) list.style.outline = "";
+  container.addEventListener("dragleave", (e) => {
+    if (!container.contains(e.relatedTarget)) list.style.outline = "";
   });
-  list.addEventListener("drop", (e) => {
+  container.addEventListener("drop", (e) => {
     list.style.outline = "";
     if (!hasFiles(e)) return;
     e.preventDefault();
@@ -208,24 +223,19 @@ function createImageListSimpleWidget(node, inputName) {
     addFiles([...e.dataTransfer.files]);
   });
 
-  const widget = node.addDOMWidget(inputName, "IMAGE_LIST_SIMPLE", list, {
+  const widget = node.addDOMWidget(inputName, "IMAGE_LIST_SIMPLE", container, {
     getValue: () => JSON.stringify(items),
     setValue: (value) => {
       items = parseValue(value);
       render();
     },
-    // 최소 높이: 가장 작은 카드 한 줄. 노드를 이만큼 줄일 수 있다
-    getMinHeight: () => MIN_THUMB_HEIGHT + BORDER * 2 + GAP * 2 + 2,
+    // 최소 높이: 가장 작은 카드 한 줄 + Clear 버튼 줄. 노드를 이만큼 줄일 수 있다
+    getMinHeight: () => MIN_THUMB_HEIGHT + BORDER * 2 + GAP * 2 + 2 + GAP + LIST_BUTTON_HEIGHT,
   });
 
   widget.addFiles = addFiles;
   widget.itemCount = () => items.length;
-  // 확인 후 목록을 비운다. input 폴더의 파일은 지우지 않는다
-  widget.clear = () => {
-    if (!items.length || !confirm(`이미지 ${items.length}개를 목록에서 모두 삭제할까요?`)) return;
-    items = [];
-    render();
-  };
+  widget.clear = clearAll;
   render();
   return { widget };
 }
@@ -252,7 +262,7 @@ app.registerExtension({
       widget.addFiles(files);
       return true;
     };
-    // 버튼 없는 UI라 모두 삭제는 노드 우클릭 메뉴에 둔다. 캔버스와 Nodes 2.0 메뉴 모두 getExtraMenuOptions를 거친다.
+    // Clear 버튼과 같은 동작을 노드 우클릭 메뉴에도 둔다. 캔버스와 Nodes 2.0 메뉴 모두 getExtraMenuOptions를 거친다.
     // ComfyUI가 노드 타입마다 prototype에 둔 메뉴(이미지 열기 등)를 먼저 부른다
     const getExtraMenuOptions = node.getExtraMenuOptions;
     node.getExtraMenuOptions = function (canvas, options) {

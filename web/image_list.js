@@ -2,6 +2,7 @@
 import { app } from "../../scripts/app.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
 import { parseValue, pasteIntoImageList, thumbnailUrl, uploadImage } from "./image_list_common.js";
+import { createListButton } from "./list_buttons.js";
 
 const THUMB_SIZE = 128;
 const ADD_BUTTON_HEIGHT = 30;
@@ -128,22 +129,26 @@ function createImageListWidget(node, inputName) {
     refreshIndexRange();
   };
 
-  const add = createButton("+ 이미지 추가", "이미지 업로드", () => fileInput.click());
-  add.style.cssText = `flex:1;height:${ADD_BUTTON_HEIGHT - 4}px;cursor:pointer;`;
+  const add = createListButton("add", "Add", "이미지 업로드", () => fileInput.click());
+  add.style.flex = "1";
   // 확인 후 목록을 비운다. input 폴더의 파일은 지우지 않는다
-  const clear = createButton("모두 삭제", "이미지 모두 삭제", () => {
+  const clear = createListButton("clear", "Clear", "이미지 모두 삭제", () => {
     if (!items.length || !confirm(`이미지 ${items.length}개를 목록에서 모두 삭제할까요?`)) return;
     items = [];
     render();
   });
-  clear.style.cssText = `height:${ADD_BUTTON_HEIGHT - 4}px;flex-shrink:0;cursor:pointer;`;
   const buttons = document.createElement("div");
   buttons.style.cssText = `display:flex;gap:${GAP}px;flex-shrink:0;`;
   buttons.append(add, clear);
   container.append(buttons);
 
+  // 업로드하는 동안 Add를 막는다. 버튼 모양을 인라인으로 정해 두어 비활성은 투명도로 보여 준다
+  const setUploading = (uploading) => {
+    add.disabled = uploading;
+    add.style.opacity = uploading ? "0.5" : "1";
+  };
   const addFiles = async (files) => {
-    add.disabled = true;
+    setUploading(true);
     try {
       for (const file of files) {
         if (!file.type.startsWith("image/")) continue;
@@ -155,7 +160,7 @@ function createImageListWidget(node, inputName) {
         render();
       }
     } finally {
-      add.disabled = false;
+      setUploading(false);
     }
   };
 
