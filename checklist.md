@@ -472,3 +472,13 @@ Text List의 "+ 항목 추가"·"모두 삭제"를 아이콘이 붙은 깔끔한
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 버튼 모양 확인
 - [ ] (별도) Nodes 2.0에서 Image List Simple 노드를 썸네일 내용보다 작게 줄일 수 없는 문제
+
+## Plan 37 — Text List Copy 버튼
+목록에 입력된 글 전체를 클립보드에 복사한다. 처음 요청은 노드 선택 후 Ctrl+C였지만, ComfyUI 노드 복사와 겹쳐서 사용자가 Copy 버튼으로 바꿨다. 형식은 사용자 선택으로 `[제목]` 머리줄이다(제목이 하나도 없으면 `##` 구분). UI(`web/`)만 바꾼다.
+- [x] ComfyUI 복사·붙여넣기 처리 확인(`useCopy.ts`는 노드를 `text/html`에만 넣음, `usePaste.ts`는 `text/html` 노드 데이터 먼저)
+- [x] `web/text_list.js`: `formatItems`(붙여넣기 `parsePasted`로 같은 항목이 되는 글), `writeClipboard`(navigator.clipboard, 안 되면 숨긴 textarea + execCommand), Add·Copy·Clear 버튼 줄
+- [x] `web/list_buttons.js`: copy 아이콘, 복사 후 아이콘을 1.5초 초록 체크로 바꾸는 `flashCheck`
+- [x] 실제 ComfyUI 1.59.6 + 헤드리스 Chrome(시스템 클립보드, 실제 마우스·Ctrl+V)으로 캔버스 14/14, Nodes 2.0 14/14, Clear 회귀 테스트, Python 테스트
+- [x] README, context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 Copy 후 메모장·다른 Text List에 붙여넣기 확인

@@ -1,7 +1,7 @@
 // Text List 노드의 TEXT_LIST 입력을 항목 목록으로 보여주고, 클릭한 항목을 여러 줄 입력창으로 편집하게 하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
-import { createListButton } from "./list_buttons.js";
+import { createListButton, flashCheck } from "./list_buttons.js";
 import { pasteTargetWidget } from "./paste_target.js";
 
 const LINE_HEIGHT = 18;
@@ -95,6 +95,36 @@ function splitByHeaders(text) {
   }
   if (items.length === 1 || items.slice(1).every((item) => !item.lines.join("").trim())) return null;
   return items.map((item) => ({ title: item.title, text: item.lines.join("\n") }));
+}
+
+// Copy 버튼이 클립보드에 넣을 글. 제목이 하나라도 있으면 항목마다 [제목] 머리줄 + 내용(제목 없는 항목은 [])을 빈 줄로 잇고,
+// 제목이 하나도 없으면 내용을 ##로 잇는다. 둘 다 Ctrl+V 붙여넣기(parsePasted)가 같은 항목으로 다시 나눈다.
+// 제목과 내용이 모두 빈 항목은 뺀다
+function formatItems(items) {
+  const filled = items
+    .map((item) => ({ title: item.title.trim(), text: item.text.trim() }))
+    .filter((item) => item.title || item.text);
+  if (filled.some((item) => item.title)) return filled.map((item) => `[${item.title}]\n${item.text}`).join("\n\n");
+  return filled.map((item) => item.text).join(`${SEPARATOR}\n`);
+}
+
+// 클립보드에 글을 쓴다. navigator.clipboard는 https나 localhost에서만 있으므로(다른 PC에서 http로 접속하면 없음),
+// 없거나 막히면 숨긴 textarea를 골라 execCommand("copy")로 쓴다. 그 copy 이벤트는 글 입력칸에서 나므로 ComfyUI가 노드를 복사하지 않는다
+async function writeClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {}
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none;";
+  document.body.append(textarea);
+  textarea.select();
+  try {
+    if (!document.execCommand("copy")) throw new Error("브라우저가 복사를 허용하지 않았습니다.");
+  } finally {
+    textarea.remove();
+  }
 }
 
 // 워크플로 JSON 글은 ComfyUI가 그 워크플로를 연다(ComfyUI_frontend usePaste.ts와 같은 판정). 그 동작은 그대로 둔다
@@ -363,6 +393,18 @@ function createTextListWidget(node, inputName) {
     startEdit(items.length - 1, showTitle() ? "title" : "text");
   });
   add.style.flex = "1";
+  // 목록 전체를 붙여넣기로 다시 읽을 수 있는 글로 복사한다(formatItems). Ctrl+C는 ComfyUI 노드 복사와 겹쳐 버튼으로 한다(사용자 결정)
+  const copy = createListButton("copy", "Copy", "목록을 클립보드에 복사", async () => {
+    const text = formatItems(items);
+    if (!text) return;
+    try {
+      await writeClipboard(text);
+    } catch (e) {
+      alert(`클립보드에 복사하지 못했습니다.\n${e.message}`);
+      return;
+    }
+    flashCheck(copy);
+  });
   // 제목이나 내용이 있는 항목을 확인 후 모두 지운다. 마지막 항목을 지울 때처럼 빈 항목 하나는 남긴다
   const clear = createListButton("clear", "Clear", "항목 모두 삭제", () => {
     const count = items.filter((item) => item.title.trim() || item.text.trim()).length;
@@ -373,7 +415,7 @@ function createTextListWidget(node, inputName) {
   });
   const buttons = document.createElement("div");
   buttons.style.cssText = `display:flex;gap:${GAP}px;flex-shrink:0;`;
-  buttons.append(add, clear);
+  buttons.append(add, copy, clear);
   container.append(buttons);
 
   const widget = node.addDOMWidget(inputName, "TEXT_LIST", container, {
