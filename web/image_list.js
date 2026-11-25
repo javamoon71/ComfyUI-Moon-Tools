@@ -2,7 +2,7 @@
 import { app } from "../../scripts/app.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
 import { parseValue, pasteIntoImageList, thumbnailUrl, uploadImage } from "./image_list_common.js";
-import { createListButton } from "./list_buttons.js";
+import { createListButton, createRemoveButton } from "./list_buttons.js";
 
 const THUMB_SIZE = 128;
 const ADD_BUTTON_HEIGHT = 30;
@@ -34,14 +34,6 @@ function createImageListWidget(node, inputName) {
     const max = Math.max(0, items.length - 1);
     indexWidget.options.max = max;
     if (indexWidget.value > max) indexWidget.value = max;
-  };
-
-  const createButton = (text, title, onClick) => {
-    const button = document.createElement("button");
-    button.textContent = text;
-    button.title = title;
-    button.addEventListener("click", onClick);
-    return button;
   };
 
   const render = () => {
@@ -117,11 +109,10 @@ function createImageListWidget(node, inputName) {
       name.title = item;
       name.style.cssText = "flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
-      const remove = createButton("✕", "항목 삭제", () => {
+      const remove = createRemoveButton("항목 삭제", () => {
         items.splice(i, 1);
         render();
       });
-      remove.style.cssText = "width:24px;height:24px;flex-shrink:0;cursor:pointer;";
 
       row.append(label, thumb, name, remove);
       list.append(row);
