@@ -567,3 +567,10 @@
 - **클립보드 쓰기**: `navigator.clipboard.writeText`. https나 localhost가 아니면(다른 PC에서 http://192.168…로 접속) `navigator.clipboard`가 없으므로, 실패하면 숨긴 textarea를 선택해 `execCommand("copy")`로 쓴다. 이때 copy 이벤트의 대상이 textarea라 ComfyUI `shouldIgnoreCopyPaste`가 건너뛰어 노드 클립보드(localStorage `litegrapheditor_clipboard`)는 그대로다. 둘 다 실패하면 alert.
 - **표시**: 복사되면 Copy 아이콘을 1.5초 동안 초록 체크로 바꾼다. 글자를 "Copied"로 바꾸면 버튼 폭이 바뀌어 Add(남은 폭)가 움직여서 아이콘만 바꿨다. 빈 목록이면 아무것도 하지 않는다.
 - **확인**: 실제 ComfyUI(1.59.6) + 헤드리스 Chrome에 클립보드 권한(`Browser.grantPermissions`)과 포커스 에뮬레이션을 주고 실제 마우스 클릭과 Ctrl+V(`commands: ["paste"]`, 시스템 클립보드)로 캔버스·Nodes 2.0 각각 14개 통과: 버튼 줄, 제목 있는 목록 글, 초록 체크와 복귀, 다른 Text List에 Ctrl+V로 같은 항목(제목 포함), 제목 없는 목록 `##` 글(공백뿐인 항목 제외), 빈 목록은 클립보드 그대로, writeText를 막았을 때 대체 복사와 노드 클립보드 그대로·textarea 정리, 오류 창 없음. Windows 시스템 클립보드는 줄바꿈을 `\r\n`으로 바꿔 저장한다(메모장에는 맞고, Text List 붙여넣기도 `\r\n`을 처리). Clear 회귀 테스트는 버튼 줄이 Add·Copy·Clear로 바뀐 것과 Nodes 2.0 노드 높이 제한(2026-11-24 위 기록) 말고는 모두 통과.
+
+## 2026-11-25 Text List 항목 X 아이콘 삭제 버튼
+- **요청**: Text List 스크린샷에서 항목 옆 삭제 버튼도 "X 표시의 이미지로". 기존 버튼은 기본 HTML 버튼에 글자 "✕"라 Add·Copy·Clear(Plan 36)와 모양이 달랐다.
+- **해석**: Plan 36처럼 이미지 파일이 아니라 인라인 SVG 선 아이콘(`M6 6l12 12M18 6L6 18`, 14px, 굵기 2.2). 크기는 기존과 같은 24x24, 테두리·배경·radius 6px·글자색은 Add 버튼과 같게 해 버튼끼리 한 벌로 보이게 했다. Clear처럼 빨간색으로 하지 않은 것은 항목마다 빨간 버튼이 늘어서면 시끄럽고, 한 항목 삭제는 확인창 없이 되돌리기 쉬운 동작이기 때문이다.
+- **공용 함수**: `createListButton`과 새 `createRemoveButton`이 type·title·hover 밝기·mousedown 기본 동작 막기·click을 내부 `createButton`으로 같이 쓴다. mousedown을 막는 것은 원래 Text List 로컬 버튼에도 있던 것으로, 다른 항목을 편집 중에 X를 눌러도 blur 재렌더링으로 클릭이 사라지지 않게 한다(테스트로 확인).
+- **범위**: Image List의 항목 ✕도 같은 기본 버튼이지만 요청이 Text List라 바꾸지 않았다. 바꾸려면 `createButton("✕", …)` 한 줄을 `createRemoveButton`으로 바꾸면 된다. Image List Simple의 ✕는 썸네일 위에 겹치는 둥근 반투명 버튼이라 다른 모양이다.
+- **확인**: 이전 세션이 만든 실제 ComfyUI(프론트엔드 1.59.6) + 헤드리스 Chrome 실제 마우스(임시 스크립트, 저장소에는 넣지 않음). 캔버스·Nodes 2.0 각각 12개 통과: 항목마다 X 버튼, 글자 없음·SVG 경로·24x24·radius·불투명·Add와 같은 색, hover 밝기, 두 번째 항목 삭제, 첫 항목 편집 중 마지막 항목 삭제, 하나 남은 항목 삭제 시 빈 항목 하나, 실행 요청 값, 오류 창 없음. Copy 회귀 14/14씩. Clear 회귀는 Plan 37에서 기록한 실패(버튼 줄 Add·Copy·Clear로 바뀜, Nodes 2.0 노드 높이 제한)만 남았다. Python unittest 66개 통과.

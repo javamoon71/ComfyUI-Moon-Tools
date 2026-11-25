@@ -482,3 +482,13 @@ Text List의 "+ 항목 추가"·"모두 삭제"를 아이콘이 붙은 깔끔한
 - [x] README, context-notes
 - [x] 커밋, push
 - [ ] ComfyUI PC에서 Copy 후 메모장·다른 Text List에 붙여넣기 확인
+
+## Plan 38 — Text List 항목 X 아이콘 삭제 버튼
+항목 옆 삭제 버튼(기본 회색 버튼에 글자 "✕")을 Add·Copy·Clear와 같은 모양의 X 선 아이콘 버튼으로 바꾼다(사용자 스크린샷). 요청이 Text List라 Image List의 같은 버튼은 그대로 둔다. UI(`web/`)만 바꾼다.
+- [x] `web/list_buttons.js`: remove(X) 아이콘, 24x24 `createRemoveButton`, 버튼 공통 처리(hover·mousedown·click)를 함수로 모음
+- [x] `web/text_list.js`: 삭제 버튼 교체, 쓰지 않게 된 로컬 `createButton` 제거
+- [x] 실제 ComfyUI 1.59.6 + 헤드리스 Chrome 실제 마우스로 캔버스 12/12, Nodes 2.0 12/12, Copy 회귀 14/14·14/14, Clear 회귀(이미 기록된 실패만), Python 테스트
+- [x] context-notes
+- [x] 커밋, push
+- [ ] ComfyUI PC에서 버튼 모양 확인
+- [ ] (사용자 결정) Image List 항목 ✕도 같은 버튼으로 바꿀지

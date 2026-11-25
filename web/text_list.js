@@ -1,7 +1,7 @@
 // Text List 노드의 TEXT_LIST 입력을 항목 목록으로 보여주고, 클릭한 항목을 여러 줄 입력창으로 편집하게 하는 프론트엔드 확장
 import { app } from "../../scripts/app.js";
 import { migrateRandom, wrapIndexControl } from "./index_control.js";
-import { createListButton, flashCheck } from "./list_buttons.js";
+import { createListButton, createRemoveButton, flashCheck } from "./list_buttons.js";
 import { pasteTargetWidget } from "./paste_target.js";
 
 const LINE_HEIGHT = 18;
@@ -240,16 +240,6 @@ function createTextListWidget(node, inputName) {
     });
   };
 
-  const createButton = (text, title, onClick) => {
-    const button = document.createElement("button");
-    button.textContent = text;
-    button.title = title;
-    // 편집 중인 입력창의 blur로 다시 그려져 클릭이 사라지지 않게 포커스 이동을 막는다
-    button.addEventListener("mousedown", (e) => e.preventDefault());
-    button.addEventListener("click", onClick);
-    return button;
-  };
-
   // 제목(1줄)을 내용 바로 위에 둔다. 보기 모드에서는 둘 다 글자로, 편집 모드에서는 둘 다 입력창으로 보여준다
   const createBody = (item, i) => {
     const body = document.createElement("div");
@@ -350,13 +340,12 @@ function createTextListWidget(node, inputName) {
       radio.addEventListener("mousedown", (e) => e.preventDefault());
       radio.addEventListener("change", () => selectIndex(Number(radio.value)));
 
-      const remove = createButton("✕", "항목 삭제", () => {
+      const remove = createRemoveButton("항목 삭제", () => {
         items.splice(i, 1);
         if (items.length === 0) items.push(toItem(""));
         editing = -1;
         render();
       });
-      remove.style.cssText = "width:24px;height:24px;flex-shrink:0;cursor:pointer;";
 
       row.append(label, radio, createBody(item, i), remove);
       list.append(row);
